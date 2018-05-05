@@ -19,7 +19,7 @@
   },
   "homepage": "https://github.com/firebase/firebase-queue",
   "repository": "https://github.com/firebase/firebase-queue.git",
-  "main": "dist/queue.js",
+  "main": "build/index.js",
   "files": [
     "dist/lib/**",
     "dist/queue.js",
