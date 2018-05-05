@@ -1,7 +1,7 @@
 {
   "name": "firebase-queue",
   "version": "0.0.1",
-  "description": "An improved version of firebase-queue which supports workflows",
+  "description": "An improved version of firebase-queue which supports easy creation of workflows",
   "keywords": [
     "job",
     "task",
