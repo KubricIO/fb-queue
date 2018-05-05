@@ -8,3 +8,5 @@ node_modules/
 
 key.json
 build
+.npmrc
+.yarnrc

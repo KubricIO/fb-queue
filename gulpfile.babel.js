@@ -83,4 +83,20 @@ gulp.task('test', () => {
     });
 });
 
+gulp.task('clean-release', ['build'], clean(releaseRoot));
+gulp.task('copy-to-release', ['clean-release'], copy(`${buildRoot}/**/*`, releaseRoot));
+gulp.task('copy-readme', ['copy-to-release'], copy(`README.md`, releaseRoot));
+gulp.task('copy-pkg-json', ['copy-to-release'], jsonEdit('package.json', releaseRoot, {
+  merge: {
+    main: './index.js',
+  },
+  transform({ scripts, ...essentials }) {
+    return {
+      ...essentials,
+    }
+  },
+}));
+
+gulp.task('publish', ['build', 'clean-release', 'copy-to-release', 'copy-pkg-json', 'copy-readme']);
+
 gulp.task('default', ['build']);

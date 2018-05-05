@@ -1,7 +1,7 @@
 {
   "name": "firebase-queue",
-  "version": "1.6.1",
-  "description": "A fault-tolerant, multi-worker, multi-stage job pipeline built on Firebase",
+  "version": "0.0.1",
+  "description": "An improved version of firebase-queue which supports workflows",
   "keywords": [
     "job",
     "task",
@@ -13,20 +13,12 @@
   ],
   "license": "MIT",
   "author": {
-    "name": "Firebase",
-    "email": "firebase-support@google.com",
-    "url": "https://firebase.google.com/"
+    "name": "Jophin Joseph",
+    "url": "https://kubric.io/"
   },
-  "homepage": "https://github.com/firebase/firebase-queue",
-  "repository": "https://github.com/firebase/firebase-queue.git",
+  "homepage": "https://github.com/KubricIO/firebase-queue",
+  "repository": "https://github.com/KubricIO/firebase-queue.git",
   "main": "build/index.js",
-  "files": [
-    "dist/lib/**",
-    "dist/queue.js",
-    "LICENSE",
-    "README.md",
-    "package.json"
-  ],
   "babel": {
     "presets": [
       "env"
@@ -79,6 +71,7 @@
     "test": "gulp test",
     "build": "gulp",
     "wftests": "node build/Workflow/tests/index.js",
-    "wfstats": "node build/Workflow/tests/stats.js"
+    "wfstats": "node build/Workflow/tests/stats.js",
+    "publish": "npm run test && npm run publish"
   }
 }
