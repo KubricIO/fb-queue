@@ -6,4 +6,5 @@ dist/
 coverage/
 node_modules/
 
-test/key.json
+key.json
+build

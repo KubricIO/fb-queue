@@ -1,40 +1,28 @@
 'use strict';
 
-var _ = require('lodash');
-var path = require('path');
-var util = require('util');
-var admin = require('firebase-admin');
-
-var serviceAccount = require('./key.json');
+import _ from 'lodash';
+import admin from 'firebase-admin';
+import { QueueWorkerWithoutProcessing, QueueWorkerWithoutProcessingOrTimeouts } from "./QueueWorkerWithoutProcessing";
+import fbConf from '../key.json';
 
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  databaseURL: process.env.FB_QUEUE_TEST_DB_URL
+  credential: admin.credential.cert(fbConf.serviceAccount),
+  databaseURL: fbConf.config.databaseURL,
 });
 
-module.exports = function() {
-  var self = this;
+export default function () {
+  const self = this;
 
   this.testRef = admin.database().ref(_.random(1, 2 << 29));
   this.offset = 0;
-  self.testRef.root.child('.info/serverTimeOffset').on('value', function(snapshot) {
+  self.testRef.root.child('.info/serverTimeOffset').on('value', function (snapshot) {
     self.offset = snapshot.val();
   });
-  this.Queue = require('../src/queue.js');
-  this.QueueWorker = require('../src/lib/queue_worker.js');
+  this.Queue = require('../src/Queue.js');
+  this.QueueWorker = require('../src/Worker.js');
 
-  this.QueueWorkerWithoutProcessingOrTimeouts = function() {
-    self.QueueWorker.apply(this, arguments);
-  };
-  util.inherits(this.QueueWorkerWithoutProcessingOrTimeouts, this.QueueWorker);
-  this.QueueWorkerWithoutProcessingOrTimeouts.prototype._tryToProcess = _.noop;
-  this.QueueWorkerWithoutProcessingOrTimeouts.prototype._setUpTimeouts = _.noop;
-
-  this.QueueWorkerWithoutProcessing = function() {
-    self.QueueWorker.apply(this, arguments);
-  };
-  util.inherits(this.QueueWorkerWithoutProcessing, this.QueueWorker);
-  this.QueueWorkerWithoutProcessing.prototype._tryToProcess = _.noop;
+  this.QueueWorkerWithoutProcessingOrTimeouts = QueueWorkerWithoutProcessingOrTimeouts;
+  this.QueueWorkerWithoutProcessing = QueueWorkerWithoutProcessing;
 
   this.validBasicTaskSpec = {
     inProgressState: 'in_progress'

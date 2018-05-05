@@ -27,27 +27,58 @@
     "README.md",
     "package.json"
   ],
+  "babel": {
+    "presets": [
+      "env"
+    ],
+    "plugins": [
+      "add-module-exports",
+      "transform-class-properties",
+      "transform-object-rest-spread",
+      "transform-function-bind"
+    ]
+  },
   "dependencies": {
+    "express": "^4.16.3",
+    "firebase": "^4.13.1",
     "lodash": "^4.6.1",
     "rsvp": "^3.2.1",
     "uuid": "^3.0.0",
     "winston": "^2.2.0"
   },
   "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-core": "^6.26.3",
+    "babel-eslint": "^8.0.3",
+    "babel-jest": "^21.2.0",
+    "babel-plugin-add-module-exports": "^0.2.1",
+    "babel-plugin-transform-class-properties": "^6.24.1",
+    "babel-plugin-transform-function-bind": "^6.22.0",
+    "babel-plugin-transform-object-rest-spread": "^6.26.0",
+    "babel-polyfill": "^6.26.0",
+    "babel-preset-env": "^1.6.1",
     "chai": "^3.5.0",
     "chai-as-promised": "^6.0.0",
     "coveralls": "^2.11.8",
+    "event-stream": "^3.3.4",
     "firebase-admin": "^4.0.3",
     "gulp": "^3.9.1",
+    "gulp-babel": "^6.1.2",
+    "gulp-clean": "^0.3.2",
     "gulp-eslint": "^3.0.1",
     "gulp-exit": "^0.0.2",
     "gulp-istanbul": "^1.1.1",
+    "gulp-json-editor": "^2.2.1",
     "gulp-mocha": "^3.0.1",
+    "gulp-sourcemaps": "^1.9.1",
+    "gulp-watch": "^4.3.9",
     "sinon": "^1.17.3",
     "sinon-chai": "^2.8.0"
   },
   "scripts": {
     "test": "gulp test",
-    "travis": "gulp"
+    "build": "gulp",
+    "wftests": "node build/Workflow/tests/index.js",
+    "wfstats": "node build/Workflow/tests/stats.js"
   }
 }
