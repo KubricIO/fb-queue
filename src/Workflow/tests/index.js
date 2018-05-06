@@ -19,19 +19,44 @@ const job = new Workflow({
   tasks: [{
     id: 'state_1',
     name: 'State 1',
+    outputData() {
+      return [{
+        field: 'State 1'
+      }];
+    }
   }, {
     id: 'state_2',
     name: 'State 2',
     numWorkers: 20,
+    outputData() {
+      return [{
+        field1: 'State 2'
+      }];
+    }
   }, {
     id: 'state_3',
     name: 'State 3',
+    outputData() {
+      return [{
+        field2: 'State 3'
+      }];
+    }
   }, {
     id: 'state_4',
     name: 'State 4',
+    outputData() {
+      return [{
+        field3: 'State 4'
+      }];
+    }
   }, {
     id: 'end',
     name: 'End Task',
+    outputData() {
+      return [{
+        field4: 'State End'
+      }];
+    }
   }],
 });
 

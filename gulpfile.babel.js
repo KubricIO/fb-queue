@@ -9,6 +9,8 @@ import {
   addBabelifyTasks,
   getTaskNames as getBabelifyTasks,
 } from './gulp-tasks/babelify';
+import copy from './gulp-tasks/copy';
+import jsonEdit from './gulp-tasks/jsoneditor';
 import clean from './gulp-tasks/clean';
 
 

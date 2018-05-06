@@ -1,6 +1,20 @@
 import QueueDB from "./db";
 import logger from 'winston';
 
+const patchData = (data, patch = {}) => {
+  if (Array.isArray(patch)) {
+    return [
+      ...(data || []),
+      ...patch,
+    ];
+  } else {
+    return {
+      ...(data || {}),
+      ...patch,
+    };
+  }
+};
+
 const resolvedTaskHandler = async (task, jobData, resolve, taskResults) => {
   const outputData = task.getOutputData(jobData, taskResults);
   if (typeof outputData !== 'undefined') {
@@ -8,7 +22,7 @@ const resolvedTaskHandler = async (task, jobData, resolve, taskResults) => {
       ...jobData,
       __display__: {
         ...jobData.__display__,
-        output: outputData,
+        output: patchData(jobData.__display__.output, outputData),
       },
     };
   }
