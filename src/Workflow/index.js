@@ -103,12 +103,13 @@ export default class Job {
   }
 
   add(jobData) {
-    QueueDB.getTasksRef().push({
+    const pushRef = QueueDB.getTasksRef().push({
       ...jobData,
       __display__: this.getInputData(jobData),
       _state: this.startTask.getStartState(),
       __type__: this.type,
       __app__: this.app,
     });
+    return pushRef.getKey();
   }
 }
