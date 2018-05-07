@@ -157,7 +157,7 @@ export default class Worker {
      * @param {Object} newTask The new data to be stored at the location.
      * @returns {RSVP.Promise} Whether the task was able to be resolved.
      */
-    return newTask => {
+    const _resolve = newTask => {
       if ((taskNumber !== this.taskNumber) || _.isNull(this.currentTaskRef)) {
         if (_.isNull(this.currentTaskRef)) {
           logger.debug(this.getLogEntry('Can\'t resolve task - no task ' +
@@ -206,7 +206,7 @@ export default class Worker {
             if (++retries < MAX_TRANSACTION_ATTEMPTS) {
               logger.debug(this.getLogEntry('resolve task errored, retrying'),
                 error);
-              setImmediate(resolve, newTask);
+              setImmediate(_resolve, newTask);
             } else {
               let errorMsg = 'resolve task errored too many times, no longer ' +
                 'retrying';
@@ -229,6 +229,7 @@ export default class Worker {
 
       return deferred.promise;
     };
+    return _resolve;
   }
 
   /**
@@ -248,7 +249,7 @@ export default class Worker {
      * @param {Object} error The error message or object to be logged.
      * @returns {RSVP.Promise} Whether the task was able to be rejected.
      */
-    return error => {
+    const _reject = error => {
       if ((taskNumber !== this.taskNumber) || _.isNull(this.currentTaskRef)) {
         if (_.isNull(this.currentTaskRef)) {
           logger.debug(this.getLogEntry('Can\'t reject task - no task ' +
@@ -312,7 +313,7 @@ export default class Worker {
             if (++retries < MAX_TRANSACTION_ATTEMPTS) {
               logger.debug(this.getLogEntry('reject task errored, retrying'),
                 transactionError);
-              setImmediate(reject, error);
+              setImmediate(_reject, error);
             } else {
               const errorMsg = 'reject task errored too many times, no longer ' +
                 'retrying';
@@ -335,6 +336,8 @@ export default class Worker {
       }
       return deferred.promise;
     };
+
+    return _reject;
   }
 
   /**
