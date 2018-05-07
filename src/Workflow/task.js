@@ -1,5 +1,5 @@
 import QueueDB from "./db";
-import logger from 'winston';
+import logger from '../utils/logger';
 
 const patchData = (data, patch = {}) => {
   if (Array.isArray(patch)) {

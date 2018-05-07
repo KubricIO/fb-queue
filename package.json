@@ -31,6 +31,7 @@
     ]
   },
   "dependencies": {
+    "backoff": "^2.5.0",
     "express": "^4.16.3",
     "firebase": "^4.13.1",
     "lodash": "^4.6.1",
@@ -71,6 +72,7 @@
     "test": "gulp test",
     "build": "gulp",
     "wftests": "node build/Workflow/tests/index.js",
+    "wftests2": "npm run build && node build/Workflow/tests/backoff.js",
     "wfstats": "node build/Workflow/tests/stats.js",
     "publish": "npm run test && npm run publish"
   }

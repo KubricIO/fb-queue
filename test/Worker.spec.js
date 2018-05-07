@@ -119,7 +119,7 @@ describe('QueueWorker', () => {
             try {
               let task = snapshot.val();
               expect(task).to.have.all.keys(['_state_changed']);
-              expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 250);
+              expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 500);
               done();
             } catch (errorB) {
               done(errorB);
@@ -205,7 +205,7 @@ describe('QueueWorker', () => {
             try {
               let task = snapshot.val();
               expect(task).to.have.all.keys(['_state_changed']);
-              expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 250);
+              expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 500);
               done();
             } catch (errorB) {
               done(errorB);
@@ -351,7 +351,7 @@ describe('QueueWorker', () => {
               expect(task).to.have.all.keys(['_state', '_state_changed', '_progress']);
               expect(task._progress).to.equal(100);
               expect(task._state).to.equal(th.validTaskSpecWithFinishedState.finishedState);
-              expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 250);
+              expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 500);
               done();
             } catch (errorB) {
               done(errorB);
@@ -386,7 +386,7 @@ describe('QueueWorker', () => {
                 expect(task).to.have.all.keys(['_state', '_state_changed', '_progress']);
                 expect(task._progress).to.equal(100);
                 expect(task._state).to.equal(th.validTaskSpecWithFinishedState.finishedState);
-                expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 250);
+                expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 500);
                 done();
               } catch (errorB) {
                 done(errorB);
@@ -421,7 +421,7 @@ describe('QueueWorker', () => {
               expect(task).to.have.all.keys(['_state', '_state_changed', '_progress', 'foo']);
               expect(task._progress).to.equal(100);
               expect(task._state).to.equal(th.validTaskSpecWithFinishedState.finishedState);
-              expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 250);
+              expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 500);
               expect(task.foo).to.equal('bar');
               done();
             } catch (errorB) {
@@ -459,7 +459,7 @@ describe('QueueWorker', () => {
               expect(task).to.have.all.keys(['_state', '_state_changed', '_progress', 'foo']);
               expect(task._progress).to.equal(100);
               expect(task._state).to.equal('valid_new_state');
-              expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 250);
+              expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 500);
               expect(task.foo).to.equal('bar');
               done();
             } catch (errorB) {
@@ -496,7 +496,7 @@ describe('QueueWorker', () => {
               let task = snapshot.val();
               expect(task).to.have.all.keys(['_state_changed', '_progress', 'foo']);
               expect(task._progress).to.equal(100);
-              expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 250);
+              expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 500);
               expect(task.foo).to.equal('bar');
               done();
             } catch (errorB) {
@@ -569,7 +569,7 @@ describe('QueueWorker', () => {
               expect(task).to.have.all.keys(['_state', '_state_changed', '_progress', 'foo']);
               expect(task._progress).to.equal(100);
               expect(task._state).to.equal(th.validTaskSpecWithFinishedState.finishedState);
-              expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 250);
+              expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 500);
               expect(task.foo).to.equal('bar');
               done();
             } catch (errorB) {
@@ -767,7 +767,7 @@ describe('QueueWorker', () => {
               let task = snapshot.val();
               expect(task).to.have.all.keys(['_state', '_progress', '_state_changed', '_error_details']);
               expect(task._state).to.equal('error');
-              expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 250);
+              expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 500);
               expect(task._progress).to.equal(0);
               expect(task._error_details).to.have.all.keys(['previous_state', 'attempts']);
               expect(task._error_details.previous_state).to.equal(th.validBasicTaskSpec.inProgressState);
@@ -807,7 +807,7 @@ describe('QueueWorker', () => {
             try {
               let task = snapshot.val();
               expect(task).to.have.all.keys(['_progress', '_state_changed', '_error_details']);
-              expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 250);
+              expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 500);
               expect(task._progress).to.equal(0);
               expect(task._error_details).to.have.all.keys(['previous_state', 'attempts']);
               expect(task._error_details.previous_state).to.equal(th.validBasicTaskSpec.inProgressState);
@@ -847,7 +847,7 @@ describe('QueueWorker', () => {
             try {
               let task = snapshot.val();
               expect(task).to.have.all.keys(['_progress', '_state_changed', '_error_details']);
-              expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 250);
+              expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 500);
               expect(task._progress).to.equal(0);
               expect(task._error_details).to.have.all.keys(['previous_state', 'attempts']);
               expect(task._error_details.previous_state).to.equal(th.validBasicTaskSpec.inProgressState);
@@ -884,7 +884,7 @@ describe('QueueWorker', () => {
               let task = snapshot.val();
               expect(task).to.have.all.keys(['_state', '_progress', '_state_changed', '_error_details']);
               expect(task._state).to.equal(th.validTaskSpecWithErrorState.errorState);
-              expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 250);
+              expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 500);
               expect(task._progress).to.equal(0);
               expect(task._error_details).to.have.all.keys(['previous_state', 'attempts']);
               expect(task._error_details.previous_state).to.equal(th.validBasicTaskSpec.inProgressState);
@@ -922,7 +922,7 @@ describe('QueueWorker', () => {
                 let task = snapshot.val();
                 expect(task).to.have.all.keys(['_state', '_progress', '_state_changed', '_error_details']);
                 expect(task._state).to.equal('error');
-                expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 250);
+                expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 500);
                 expect(task._progress).to.equal(0);
                 expect(task._error_details).to.have.all.keys(['previous_state', 'error', 'attempts']);
                 expect(task._error_details.previous_state).to.equal(th.validBasicTaskSpec.inProgressState);
@@ -962,7 +962,7 @@ describe('QueueWorker', () => {
               let task = snapshot.val();
               expect(task).to.have.all.keys(['_state', '_progress', '_state_changed', '_error_details']);
               expect(task._state).to.equal('error');
-              expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 250);
+              expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 500);
               expect(task._progress).to.equal(0);
               expect(task._error_details).to.have.all.keys(['previous_state', 'error', 'attempts']);
               expect(task._error_details.previous_state).to.equal(th.validBasicTaskSpec.inProgressState);
@@ -1001,7 +1001,7 @@ describe('QueueWorker', () => {
               let task = snapshot.val();
               expect(task).to.have.all.keys(['_state', '_progress', '_state_changed', '_error_details']);
               expect(task._state).to.equal('error');
-              expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 250);
+              expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 500);
               expect(task._progress).to.equal(0);
               expect(task._error_details).to.have.all.keys(['previous_state', 'error', 'attempts', 'error_stack']);
               expect(task._error_details.previous_state).to.equal(th.validBasicTaskSpec.inProgressState);
@@ -1042,7 +1042,7 @@ describe('QueueWorker', () => {
               let task = snapshot.val();
               expect(task).to.have.all.keys(['_state', '_progress', '_state_changed', '_error_details']);
               expect(task._state).to.equal('error');
-              expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 250);
+              expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 500);
               expect(task._progress).to.equal(0);
               expect(task._error_details).to.have.all.keys(['previous_state', 'error', 'attempts']);
               expect(task._error_details.previous_state).to.equal(th.validBasicTaskSpec.inProgressState);
@@ -1215,7 +1215,7 @@ describe('QueueWorker', () => {
 
     beforeEach(() => {
       qw = new th.QueueWorkerWithoutProcessingOrTimeouts(tasksRef, '0', true, false, _.noop);
-      qw.tryToProcess = _.noop;
+      qw.tryToStart = _.noop;
     });
 
     afterEach(done => {
@@ -1305,7 +1305,7 @@ describe('QueueWorker', () => {
     });
   });
 
-  describe('#tryToProcess', () => {
+  describe('#tryToStart', () => {
     let qw;
 
     beforeEach(() => {
@@ -1328,7 +1328,7 @@ describe('QueueWorker', () => {
         if (errorA) {
           return done(errorA);
         }
-        return qw.tryToProcess().then(() => {
+        return qw.tryToStart().then(() => {
           try {
             expect(qw.currentTaskRef).to.be.null;
             done();
@@ -1349,7 +1349,7 @@ describe('QueueWorker', () => {
         if (errorA) {
           return done(errorA);
         }
-        return qw.tryToProcess().then(() => {
+        return qw.tryToStart().then(() => {
           try {
             expect(qw.currentTaskRef).to.not.be.null;
             expect(qw.busy).to.be.true;
@@ -1376,7 +1376,7 @@ describe('QueueWorker', () => {
         if (errorA) {
           return done(errorA);
         }
-        return qw.tryToProcess().then(() => {
+        return qw.tryToStart().then(() => {
           try {
             expect(qw.currentTaskRef).to.not.be.null;
             expect(qw.busy).to.be.true;
@@ -1390,7 +1390,7 @@ describe('QueueWorker', () => {
                   let task = snapshot.val();
                   expect(task).to.have.all.keys(['_state', '_progress', '_state_changed', '_error_details']);
                   expect(task._state).to.equal('error');
-                  expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 250);
+                  expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 500);
                   expect(task._progress).to.equal(0);
                   expect(task._error_details).to.have.all.keys(['previous_state', 'attempts', 'error', 'error_stack']);
                   expect(task._error_details.previous_state).to.equal(th.validTaskSpecWithStartState.inProgressState);
@@ -1420,7 +1420,7 @@ describe('QueueWorker', () => {
         if (errorA) {
           return done(errorA);
         }
-        return qw.tryToProcess().then(() => {
+        return qw.tryToStart().then(() => {
           try {
             expect(qw.currentTaskRef).to.not.be.null;
             expect(qw.busy).to.be.true;
@@ -1440,7 +1440,7 @@ describe('QueueWorker', () => {
         if (errorA) {
           return done(errorA);
         }
-        return qw.tryToProcess().then(() => {
+        return qw.tryToStart().then(() => {
           try {
             expect(qw.currentTaskRef).to.be.null;
             expect(qw.busy).to.be.false;
@@ -1472,7 +1472,7 @@ describe('QueueWorker', () => {
         if (errorA) {
           return done(errorA);
         }
-        return qw.tryToProcess().then(() => {
+        return qw.tryToStart().then(() => {
           try {
             expect(qw.currentTaskRef).to.be.null;
             expect(qw.busy).to.be.false;
@@ -1485,7 +1485,7 @@ describe('QueueWorker', () => {
                 expect(task._error_details.original_task).to.equal('invalid');
                 expect(task._error_details.error_stack).to.be.a.string;
                 expect(task._state).to.equal('error');
-                expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 500);
+                expect(task._state_changed).to.be.closeTo(new Date().getTime() + th.offset, 750);
                 done();
               } catch (errorB) {
                 done(errorB);
@@ -1508,7 +1508,7 @@ describe('QueueWorker', () => {
         if (errorA) {
           return done(errorA);
         }
-        return qw.tryToProcess().then(() => {
+        return qw.tryToStart().then(() => {
           try {
             expect(qw.currentTaskRef).to.be.null;
             done();
@@ -1523,7 +1523,7 @@ describe('QueueWorker', () => {
       qw.startState = th.validTaskSpecWithStartState.startState;
       qw.inProgressState = th.validTaskSpecWithStartState.inProgressState;
       qw.newTaskRef = tasksRef;
-      qw.tryToProcess().then(() => {
+      qw.tryToStart().then(() => {
         try {
           expect(qw.currentTaskRef).to.be.null;
           done();
@@ -1543,7 +1543,7 @@ describe('QueueWorker', () => {
         if (errorA) {
           return done(errorA);
         }
-        return qw.tryToProcess().then(() => {
+        return qw.tryToStart().then(() => {
           try {
             expect(qw.currentTaskRef).to.not.be.null;
             expect(qw.busy).to.be.true;
@@ -2138,10 +2138,10 @@ describe('QueueWorker', () => {
     it('should not pick up tasks on the queue not for the current task', done => {
       qw = new th.QueueWorkerWithoutProcessingOrTimeouts(tasksRef, '0', true, false, _.noop);
       qw.setTaskSpec(th.validBasicTaskSpec);
-      let spy = sinon.spy(qw, 'tryToProcess');
+      let spy = sinon.spy(qw, 'tryToStart');
       tasksRef.once('child_added', () => {
         try {
-          expect(qw.tryToProcess).to.not.have.been.called;
+          expect(qw.tryToStart).to.not.have.been.called;
           spy.restore();
           done();
         } catch (error) {
@@ -2160,11 +2160,11 @@ describe('QueueWorker', () => {
     it('should pick up tasks on the queue with no "_state" when a task is specified without a startState', done => {
       qw = new th.QueueWorkerWithoutProcessingOrTimeouts(tasksRef, '0', true, false, _.noop);
       qw.setTaskSpec(th.validBasicTaskSpec);
-      let spy = sinon.spy(qw, 'tryToProcess');
+      let spy = sinon.spy(qw, 'tryToStart');
       let ref = tasksRef.push();
       tasksRef.once('child_added', () => {
         try {
-          expect(qw.tryToProcess).to.have.been.calledOnce;
+          expect(qw.tryToStart).to.have.been.calledOnce;
           spy.restore();
           done();
         } catch (error) {
@@ -2178,11 +2178,11 @@ describe('QueueWorker', () => {
     it('should pick up tasks on the queue with the corresponding "_state" when a task is specifies a startState', done => {
       qw = new th.QueueWorkerWithoutProcessingOrTimeouts(tasksRef, '0', true, false, _.noop);
       qw.setTaskSpec(th.validTaskSpecWithStartState);
-      let spy = sinon.spy(qw, 'tryToProcess');
+      let spy = sinon.spy(qw, 'tryToStart');
       let ref = tasksRef.push();
       tasksRef.once('child_added', () => {
         try {
-          expect(qw.tryToProcess).to.have.been.calledOnce;
+          expect(qw.tryToStart).to.have.been.calledOnce;
           spy.restore();
           done();
         } catch (error) {

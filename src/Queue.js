@@ -1,5 +1,5 @@
 import _ from 'lodash';
-import logger from 'winston';
+import logger from './utils/logger';
 import QueueWorker from './Worker';
 
 const DEFAULT_NUM_WORKERS = 1;
@@ -64,6 +64,7 @@ export default class Queue {
       if (!_.isPlainObject(options)) {
         Queue.throwInitializeError('Options parameter must be a plain object.');
       }
+      this.backoffConf = options.backoff;
       this.setSpecId(options.specId);
       this.setNumWorkers(options.numWorkers);
       this.setSanitize(options.sanitize);
@@ -147,7 +148,8 @@ export default class Queue {
         this.getQueueId(),
         this.sanitize,
         this.suppressStack,
-        this.processingFunction
+        this.processingFunction,
+        this.backoffConf,
       ));
     }
   }
@@ -220,7 +222,8 @@ export default class Queue {
       this.getQueueId(this.workers.length),
       this.sanitize,
       this.suppressStack,
-      this.processingFunction
+      this.processingFunction,
+      this.backoffConf
     );
     this.workers.push(worker);
 

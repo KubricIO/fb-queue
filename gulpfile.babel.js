@@ -19,7 +19,7 @@ const releaseRoot = 'release';
 
 const serverFiles = {
   src: {
-    files: ['src/**/*.js', '!src/Workflow/tests/index.js', '!src/Workflow/tests/stats.js', '!src/index.js'],
+    files: ['src/**/*.js', '!src/Workflow/tests/index.js', '!src/Workflow/tests/backoff.js', '!src/Workflow/tests/stats.js', '!src/index.js'],
     to: `${buildRoot}`
   },
   index: {
@@ -31,6 +31,12 @@ const serverFiles = {
   wftest: {
     root: 'src/Workflow/tests',
     fileName: 'index.js',
+    addPolyfill: true,
+    to: `${buildRoot}/Workflow/tests`
+  },
+  wftestbackoff: {
+    root: 'src/Workflow/tests',
+    fileName: 'backoff.js',
     addPolyfill: true,
     to: `${buildRoot}/Workflow/tests`
   },

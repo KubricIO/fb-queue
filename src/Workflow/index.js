@@ -2,13 +2,13 @@ import Queue from '../Queue';
 import QueueDB from './db';
 import getRoutes from './routes';
 import Task from "./task";
-import logger from 'winston';
+import logger from '../utils/logger';
 
 export default class Job {
   static initialized = false;
   static queues = {};
 
-  constructor({ app, type = '', tasks = [], timeout, retries, numWorkers = 1, inputData }) {
+  constructor({ app, type = '', tasks = [], timeout, retries, numWorkers = 1, inputData, backoff }) {
     if (typeof app !== 'string' || app.length === 0) {
       throw new Error('Please provide a valid app');
     }
@@ -25,6 +25,7 @@ export default class Job {
     }
     this.type = type;
     this.app = app;
+    this.backoff = backoff;
     this.tasks = Task.createTasks(this.type, tasks, {
       timeout,
       retries,
@@ -88,6 +89,7 @@ export default class Job {
     appQueues.push(new Queue(QueueDB.getQueueRef(), {
       specId: task.getSpecName(),
       numWorkers: task.getWorkerCount(),
+      backoff: this.backoff,
     }, task.getHandler(handler)));
     Job.queues[this.app] = appQueues;
   }

@@ -1,6 +1,6 @@
 import conf from '../../../key';
 import { Workflow } from "../../index";
-import logger from 'winston';
+import logger from '../../utils/logger';
 
 Workflow.initialize({
   firebase: conf,

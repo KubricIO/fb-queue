@@ -1,7 +1,8 @@
-import logger from 'winston';
+import logger from './utils/logger';
 import uuid from 'uuid';
 import _ from 'lodash';
 import RSVP from 'rsvp';
+import { Backoff, ExponentialStrategy, FibonacciStrategy } from 'backoff';
 
 const MAX_TRANSACTION_ATTEMPTS = 10;
 const DEFAULT_ERROR_STATE = 'error';
@@ -9,6 +10,11 @@ const DEFAULT_RETRIES = 0;
 
 const SERVER_TIMESTAMP = {
   '.sv': 'timestamp',
+};
+
+const DEFAULT_BACKOFF_CONF = {
+  initialDelay: 1000,
+  maxDelay: 10000
 };
 
 const getKey = snapshot => _.isFunction(snapshot.key) ? snapshot.key() : snapshot.key;
@@ -23,7 +29,28 @@ const getRef = snapshot => _.isFunction(snapshot.ref) ? snapshot.ref() : snapsho
  * @return {Object}
  */
 export default class Worker {
-  constructor(tasksRef, queueId, sanitize, suppressStack, processingFunction) {
+  static backoffs = {};
+
+  static getBackoff(processId, backoffConf, failAfter, onReady) {
+    if (!Worker.backoffs[processId]) {
+      logger.debug(`${processId}: Setting up backoff`);
+      const { strategy = 'fibonacci', conf = DEFAULT_BACKOFF_CONF } = backoffConf;
+      const Strategy = strategy === 'exponential' ? ExponentialStrategy : FibonacciStrategy;
+      const backoffStrategy = new Strategy(conf);
+      const backoff = new Backoff(backoffStrategy);
+      typeof failAfter !== 'undefined' && backoff.failAfter(failAfter);
+      backoff.on('backoff', (number, delay) => logger.info(`Task: ${processId} in retry number ${number + 1} after a delay of ${delay} ms`));
+      onReady && backoff.on('ready', onReady);
+      Worker.backoffs[processId] = backoff;
+    }
+    return Worker.backoffs[processId];
+  }
+
+  static clearBackoff(processId) {
+    delete Worker.backoffs[processId];
+  }
+
+  constructor(tasksRef, queueId, sanitize, suppressStack, processingFunction, backoff) {
     if (_.isUndefined(tasksRef)) {
       Worker.throwWorkerError('No tasks reference provided.');
     }
@@ -42,7 +69,7 @@ export default class Worker {
     this.queueId = queueId;
     this.workerId = this.getWorkerId();
     this.shutdownDeferred = null;
-
+    this.backoffConf = backoff;
     this.processingFunction = processingFunction;
     this.expiryTimeouts = {};
     this.owners = {};
@@ -51,7 +78,9 @@ export default class Worker {
     this.processingTasksRef = null;
     this.currentTaskRef = null;
     this.newTaskRef = null;
-
+    this.newBackoffTaskRef = null;
+    this.backoff = null;
+    this.backoffTaskListener = null;
     this.currentTaskListener = null;
     this.newTaskListener = null;
     this.processingTaskAddedListener = null;
@@ -94,8 +123,9 @@ export default class Worker {
    *   necessarily expect this worker to own.
    * @returns {Promise} Whether the task was able to be reset.
    */
-  resetTask(taskRef, immediate, deferred) {
+  resetTask(taskRef, immediate, resetToState, deferred) {
     let retries = 0;
+    resetToState = resetToState || this.startState;
 
     /* istanbul ignore else */
     if (_.isUndefined(deferred)) {
@@ -103,42 +133,45 @@ export default class Worker {
     }
 
     taskRef.transaction(task => {
-      /* istanbul ignore if */
-      if (_.isNull(task)) {
-        return task;
-      }
-      const id = this.getProcessId();
-      const correctState = (task._state === this.inProgressState);
-      const correctOwner = (task._owner === id || !immediate);
-      const timeSinceUpdate = Date.now() - _.get(task, '_state_changed', 0);
-      const timedOut = ((this.taskTimeout && timeSinceUpdate > this.taskTimeout) || immediate);
-      if (correctState && correctOwner && timedOut) {
-        task._state = this.startState;
-        task._state_changed = SERVER_TIMESTAMP;
-        task._owner = null;
-        task._progress = null;
-        task._error_details = null;
-        return task;
-      }
-      return undefined;
-    }, (error, committed, snapshot) => {
-      /* istanbul ignore if */
-      if (error) {
-        if (++retries < MAX_TRANSACTION_ATTEMPTS) {
-          logger.debug(this.getLogEntry('reset task errored, retrying'), error);
-          setImmediate(::this.resetTask, taskRef, immediate, deferred);
+        /* istanbul ignore if */
+        if (_.isNull(task)) {
+          return task;
+        }
+        const id = this.getProcessId();
+        const correctState = (task._state === this.inProgressState);
+        const correctOwner = (task._owner === id || !immediate);
+        const timeSinceUpdate = Date.now() - _.get(task, '_state_changed', 0);
+        const timedOut = ((this.taskTimeout && timeSinceUpdate > this.taskTimeout) || immediate);
+        if (correctState && correctOwner && timedOut) {
+          task._state = resetToState;
+          task._state_changed = SERVER_TIMESTAMP;
+          task._owner = null;
+          task._progress = null;
+          task._error_details = null;
+          return task;
+        }
+        return undefined;
+      }, (error, committed, snapshot) => {
+        /* istanbul ignore if */
+        if (error) {
+          if (++retries < MAX_TRANSACTION_ATTEMPTS) {
+            logger.debug(this.getLogEntry('reset task errored, retrying'), error);
+            setImmediate(::this.resetTask, taskRef, immediate, resetToState, deferred);
+          } else {
+            const errorMsg = 'reset task errored too many times, no longer retrying';
+            logger.debug(this.getLogEntry(errorMsg), error);
+            deferred.reject(new Error(errorMsg));
+          }
         } else {
-          const errorMsg = 'reset task errored too many times, no longer retrying';
-          logger.debug(this.getLogEntry(errorMsg), error);
-          deferred.reject(new Error(errorMsg));
+          if (committed && snapshot.exists()) {
+            logger.debug(this.getLogEntry('reset ' + getKey(snapshot)));
+          }
+          deferred.resolve();
         }
-      } else {
-        if (committed && snapshot.exists()) {
-          logger.debug(this.getLogEntry('reset ' + getKey(snapshot)));
-        }
-        deferred.resolve();
-      }
-    }, false);
+      }, false)
+      .catch(ex => {
+        logger.error(ex)
+      });
 
     return deferred.promise;
   }
@@ -157,7 +190,7 @@ export default class Worker {
      * @param {Object} newTask The new data to be stored at the location.
      * @returns {RSVP.Promise} Whether the task was able to be resolved.
      */
-    return newTask => {
+    const _resolve = newTask => {
       if ((taskNumber !== this.taskNumber) || _.isNull(this.currentTaskRef)) {
         if (_.isNull(this.currentTaskRef)) {
           logger.debug(this.getLogEntry('Can\'t resolve task - no task ' +
@@ -168,67 +201,73 @@ export default class Worker {
         }
         deferred.resolve();
         this.busy = false;
-        this.tryToProcess();
+        this.tryToStart();
       } else {
         let existedBefore;
         this.currentTaskRef.transaction(task => {
-          existedBefore = true;
-          if (_.isNull(task)) {
-            existedBefore = false;
-            return task;
-          }
-          let id = this.getProcessId();
-          if (task._state === this.inProgressState && task._owner === id) {
-            let outputTask = _.clone(newTask);
-            if (!_.isPlainObject(outputTask)) {
-              outputTask = {};
+            existedBefore = true;
+            if (_.isNull(task)) {
+              existedBefore = false;
+              return task;
             }
-            outputTask._state = _.get(outputTask, '_new_state');
-            delete outputTask._new_state;
-            if (!_.isNull(outputTask._state) && !_.isString(outputTask._state)) {
-              if (_.isNull(this.finishedState) || outputTask._state === false) {
-                // Remove the item if no `finished_state` set in the spec or
-                // _new_state is explicitly set to `false`.
-                return null;
+            let id = this.getProcessId();
+            if (task._state === this.inProgressState && task._owner === id) {
+              let outputTask = _.clone(newTask);
+              if (!_.isPlainObject(outputTask)) {
+                outputTask = {};
               }
-              outputTask._state = this.finishedState;
+              outputTask._state = _.get(outputTask, '_new_state');
+              delete outputTask._new_state;
+              if (!_.isNull(outputTask._state) && !_.isString(outputTask._state)) {
+                if (_.isNull(this.finishedState) || outputTask._state === false) {
+                  // Remove the item if no `finished_state` set in the spec or
+                  // _new_state is explicitly set to `false`.
+                  return null;
+                }
+                outputTask._state = this.finishedState;
+              }
+              outputTask._state_changed = SERVER_TIMESTAMP;
+              outputTask._owner = null;
+              outputTask._progress = 100;
+              outputTask._error_details = null;
+              return outputTask;
             }
-            outputTask._state_changed = SERVER_TIMESTAMP;
-            outputTask._owner = null;
-            outputTask._progress = 100;
-            outputTask._error_details = null;
-            return outputTask;
-          }
-          return undefined;
-        }, (error, committed, snapshot) => {
-          /* istanbul ignore if */
-          if (error) {
-            if (++retries < MAX_TRANSACTION_ATTEMPTS) {
-              logger.debug(this.getLogEntry('resolve task errored, retrying'),
-                error);
-              setImmediate(resolve, newTask);
+            return undefined;
+          }, (error, committed, snapshot) => {
+            /* istanbul ignore if */
+            if (error) {
+              if (++retries < MAX_TRANSACTION_ATTEMPTS) {
+                logger.debug(this.getLogEntry('resolve task errored, retrying'),
+                  error);
+                setImmediate(_resolve, newTask);
+              } else {
+                let errorMsg = 'resolve task errored too many times, no longer ' +
+                  'retrying';
+                logger.debug(this.getLogEntry(errorMsg), error);
+                deferred.reject(new Error(errorMsg));
+              }
             } else {
-              let errorMsg = 'resolve task errored too many times, no longer ' +
-                'retrying';
-              logger.debug(this.getLogEntry(errorMsg), error);
-              deferred.reject(new Error(errorMsg));
+              if (committed && existedBefore) {
+                logger.debug(this.getLogEntry('completed ' + getKey(snapshot)));
+              } else {
+                logger.debug(this.getLogEntry('Can\'t resolve task - current ' +
+                  'task no longer owned by this process'));
+              }
+              deferred.resolve();
+              this.busy = false;
+              Worker.clearBackoff(this.getProcessId());
+              this.tryToStart();
             }
-          } else {
-            if (committed && existedBefore) {
-              logger.debug(this.getLogEntry('completed ' + getKey(snapshot)));
-            } else {
-              logger.debug(this.getLogEntry('Can\'t resolve task - current ' +
-                'task no longer owned by this process'));
-            }
-            deferred.resolve();
-            this.busy = false;
-            this.tryToProcess();
-          }
-        }, false);
+          }, false)
+          .catch(ex => {
+            logger.error(ex)
+          });
       }
 
       return deferred.promise;
     };
+
+    return _resolve;
   }
 
   /**
@@ -248,7 +287,7 @@ export default class Worker {
      * @param {Object} error The error message or object to be logged.
      * @returns {RSVP.Promise} Whether the task was able to be rejected.
      */
-    return error => {
+    const _reject = error => {
       if ((taskNumber !== this.taskNumber) || _.isNull(this.currentTaskRef)) {
         if (_.isNull(this.currentTaskRef)) {
           logger.debug(this.getLogEntry('Can\'t reject task - no task ' +
@@ -259,7 +298,7 @@ export default class Worker {
         }
         deferred.resolve();
         this.busy = false;
-        this.tryToProcess();
+        this.tryToStart();
       } else {
         if (_.isError(error)) {
           errorString = error.message;
@@ -275,66 +314,71 @@ export default class Worker {
 
         let existedBefore;
         this.currentTaskRef.transaction(task => {
-          existedBefore = true;
-          if (_.isNull(task)) {
-            existedBefore = false;
-            return task;
-          }
-          const id = this.getProcessId();
-          if (task._state === this.inProgressState &&
-            task._owner === id) {
-            let attempts = 0;
-            const currentAttempts = _.get(task, '_error_details.attempts', 0);
-            const currentPrevState = _.get(task, '_error_details.previous_state');
-            if (currentAttempts > 0 &&
-              currentPrevState === this.inProgressState) {
-              attempts = currentAttempts;
+            existedBefore = true;
+            if (_.isNull(task)) {
+              existedBefore = false;
+              return task;
             }
-            if (attempts >= this.taskRetries) {
-              task._state = this.errorState;
+            const id = this.getProcessId();
+            if (task._state === this.inProgressState && task._owner === id) {
+              let attempts = 0;
+              const currentAttempts = _.get(task, '_error_details.attempts', 0);
+              const currentPrevState = _.get(task, '_error_details.previous_state');
+              if (currentAttempts > 0 && currentPrevState === this.inProgressState) {
+                attempts = currentAttempts;
+              }
+              if (attempts >= this.taskRetries) {
+                task._state = this.errorState;
+              } else if (typeof this.backoffConf !== 'undefined') {
+                task._state = this.backoffState;
+              } else {
+                task._state = this.startState;
+              }
+              task._state_changed = SERVER_TIMESTAMP;
+              task._owner = null;
+              task._error_details = {
+                previous_state: this.inProgressState,
+                error: errorString,
+                error_stack: errorStack,
+                attempts: attempts + 1
+              };
+              return task;
+            }
+            return undefined;
+          }, (transactionError, committed, snapshot) => {
+            /* istanbul ignore if */
+            if (transactionError) {
+              if (++retries < MAX_TRANSACTION_ATTEMPTS) {
+                logger.debug(this.getLogEntry('reject task errored, retrying'),
+                  transactionError);
+                setImmediate(_reject, error);
+              } else {
+                const errorMsg = 'reject task errored too many times, no longer ' +
+                  'retrying';
+                logger.debug(this.getLogEntry(errorMsg), transactionError);
+                deferred.reject(new Error(errorMsg));
+              }
             } else {
-              task._state = this.startState;
+              if (committed && existedBefore) {
+                logger.debug(this.getLogEntry('errored while attempting to ' +
+                  'complete ' + getKey(snapshot)));
+              } else {
+                logger.debug(this.getLogEntry('Can\'t reject task - current task' +
+                  ' no longer owned by this process'));
+              }
+              deferred.resolve();
+              this.busy = false;
+              this.tryToStart();
             }
-            task._state_changed = SERVER_TIMESTAMP;
-            task._owner = null;
-            task._error_details = {
-              previous_state: this.inProgressState,
-              error: errorString,
-              error_stack: errorStack,
-              attempts: attempts + 1
-            };
-            return task;
-          }
-          return undefined;
-        }, (transactionError, committed, snapshot) => {
-          /* istanbul ignore if */
-          if (transactionError) {
-            if (++retries < MAX_TRANSACTION_ATTEMPTS) {
-              logger.debug(this.getLogEntry('reject task errored, retrying'),
-                transactionError);
-              setImmediate(reject, error);
-            } else {
-              const errorMsg = 'reject task errored too many times, no longer ' +
-                'retrying';
-              logger.debug(this.getLogEntry(errorMsg), transactionError);
-              deferred.reject(new Error(errorMsg));
-            }
-          } else {
-            if (committed && existedBefore) {
-              logger.debug(this.getLogEntry('errored while attempting to ' +
-                'complete ' + getKey(snapshot)));
-            } else {
-              logger.debug(this.getLogEntry('Can\'t reject task - current task' +
-                ' no longer owned by this process'));
-            }
-            deferred.resolve();
-            this.busy = false;
-            this.tryToProcess();
-          }
-        }, false);
+          }, false)
+          .catch(ex => {
+            logger.error(ex);
+          });
       }
       return deferred.promise;
     };
+
+    return _reject;
   }
 
   /**
@@ -361,37 +405,71 @@ export default class Worker {
       }
       return new RSVP.Promise((resolve, reject) => {
         this.currentTaskRef.transaction(task => {
-          /* istanbul ignore if */
-          if (_.isNull(task)) {
-            return task;
-          }
-          const id = this.getProcessId();
-          if (task._state === this.inProgressState &&
-            task._owner === id) {
-            task._progress = progress;
-            return task;
-          }
-          return undefined;
-        }, (transactionError, committed, snapshot) => {
-          /* istanbul ignore if */
-          if (transactionError) {
-            errorMsg = 'errored while attempting to update progress';
-            logger.debug(this.getLogEntry(errorMsg), transactionError);
+            /* istanbul ignore if */
+            if (_.isNull(task)) {
+              return task;
+            }
+            const id = this.getProcessId();
+            if (task._state === this.inProgressState &&
+              task._owner === id) {
+              task._progress = progress;
+              return task;
+            }
+            return undefined;
+          }, (transactionError, committed, snapshot) => {
+            /* istanbul ignore if */
+            if (transactionError) {
+              errorMsg = 'errored while attempting to update progress';
+              logger.debug(this.getLogEntry(errorMsg), transactionError);
+              return reject(new Error(errorMsg));
+            }
+            if (committed && snapshot.exists()) {
+              return resolve();
+            }
+            errorMsg = 'Can\'t update progress - current task no longer owned ' +
+              'by this process';
+            logger.debug(this.getLogEntry(errorMsg));
             return reject(new Error(errorMsg));
-          }
-          if (committed && snapshot.exists()) {
-            return resolve();
-          }
-          errorMsg = 'Can\'t update progress - current task no longer owned ' +
-            'by this process';
-          logger.debug(this.getLogEntry(errorMsg));
-          return reject(new Error(errorMsg));
-        }, false);
+          }, false)
+          .catch(err => {
+            logger.error(err)
+          });
       });
     };
   }
 
-  tryToProcess(deferred) {
+  isCurrentTaskValid(taskRef) {
+    return new Promise((resolve, reject) => {
+      if (!this.busy) {
+        if (!_.isNull(this.shutdownDeferred)) {
+          this.setTaskSpec(null);
+          logger.debug(this.getLogEntry('finished shutdown'));
+          this.shutdownDeferred.resolve();
+          reject(new Error('Shutting down - can no longer process new tasks'));
+        } else {
+          if (!taskRef) {
+            reject();
+          } else {
+            taskRef.once('value', taskSnap => {
+              if (!taskSnap.exists()) {
+                reject();
+              } else {
+                let nextTaskRef;
+                taskSnap.forEach(childSnap => {
+                  nextTaskRef = getRef(childSnap);
+                });
+                resolve(nextTaskRef);
+              }
+            });
+          }
+        }
+      } else {
+        reject();
+      }
+    });
+  }
+
+  tryToProcessTask(taskRef, taskModifier, resetToState, afterTaskUpdate, deferred) {
     let retries = 0;
     let malformed = false;
 
@@ -400,140 +478,145 @@ export default class Worker {
       deferred = RSVP.defer();
     }
 
-    if (!this.busy) {
-      if (!_.isNull(this.shutdownDeferred)) {
-        deferred.reject(new Error('Shutting down - can no longer process new ' +
-          'tasks'));
-        this.setTaskSpec(null);
-        logger.debug(this.getLogEntry('finished shutdown'));
-        this.shutdownDeferred.resolve();
-      } else {
-        if (!this.newTaskRef) {
-          deferred.resolve();
-        } else {
-          this.newTaskRef.once('value', taskSnap => {
-            if (!taskSnap.exists()) {
-              return deferred.resolve();
-            }
-            let nextTaskRef;
-            taskSnap.forEach(childSnap => {
-              nextTaskRef = getRef(childSnap);
-            });
-            return nextTaskRef.transaction(task => {
-              /* istanbul ignore if */
-              if (_.isNull(task)) {
-                return task;
-              }
-              if (!_.isPlainObject(task)) {
-                malformed = true;
-                const error = new Error('Task was malformed');
-                let errorStack = null;
-                if (!this.suppressStack) {
-                  errorStack = error.stack;
-                }
-                return {
-                  _state: this.errorState,
-                  _state_changed: SERVER_TIMESTAMP,
-                  _error_details: {
-                    error: error.message,
-                    original_task: task,
-                    error_stack: errorStack
-                  }
-                };
-              }
-              if (_.isUndefined(task._state)) {
-                task._state = null;
-              }
-              if (task._state === this.startState) {
-                task._state = this.inProgressState;
-                task._state_changed = SERVER_TIMESTAMP;
-                task._owner = this.getProcessId(this.taskNumber + 1);
-                task._progress = 0;
-                return task;
-              }
-              logger.debug(this.getLogEntry(`task no longer in correct state: expected ${this.startState}, got ${task._state}`));
-              return undefined;
-            }, (error, committed, snapshot) => {
-              /* istanbul ignore if */
-              if (error) {
-                if (++retries < MAX_TRANSACTION_ATTEMPTS) {
-                  logger.debug(this.getLogEntry('errored while attempting to ' +
-                    'claim a new task, retrying'), error);
-                  return setImmediate(::this.tryToProcess, deferred);
-                }
-                const errorMsg = 'errored while attempting to claim a new task ' +
-                  'too many times, no longer retrying';
-                logger.debug(this.getLogEntry(errorMsg), error);
-                return deferred.reject(new Error(errorMsg));
-              } else if (committed && snapshot.exists()) {
-                if (malformed) {
-                  logger.debug(this.getLogEntry('found malformed entry ' +
-                    getKey(snapshot)));
-                } else {
-                  /* istanbul ignore if */
-                  if (this.busy) {
-                    // Worker has become busy while the transaction was processing
-                    // so give up the task for now so another worker can claim it
-                    this.resetTask(nextTaskRef, true);
-                  } else {
-                    this.busy = true;
-                    this.taskNumber += 1;
-                    logger.debug(this.getLogEntry('claimed ' + getKey(snapshot)));
-                    this.currentTaskRef = getRef(snapshot);
-                    this.currentTaskListener = this.currentTaskRef
-                      .child('_owner')
-                      .on('value', ownerSnapshot => {
-                        const id = this.getProcessId(this.taskNumber);
-                        /* istanbul ignore else */
-                        if (ownerSnapshot.val() !== id &&
-                          !_.isNull(this.currentTaskRef) &&
-                          !_.isNull(this.currentTaskListener)) {
-                          this.currentTaskRef.child('_owner').off(
-                            'value',
-                            this.currentTaskListener);
-                          this.currentTaskRef = null;
-                          this.currentTaskListener = null;
-                        }
-                      });
-                    const data = snapshot.val();
-                    if (this.sanitize) {
-                      [
-                        '_state',
-                        '_state_changed',
-                        '_owner',
-                        '_progress',
-                        '_error_details'
-                      ].forEach(reserved => {
-                        if (snapshot.hasChild(reserved)) {
-                          delete data[reserved];
-                        }
-                      });
-                    } else {
-                      data._id = getKey(snapshot);
-                    }
-                    const progress = this.updateProgress(this.taskNumber);
-                    const resolve = this.resolve(this.taskNumber);
-                    const reject = this.reject(this.taskNumber);
-                    setImmediate(() => {
-                      try {
-                        this.processingFunction.call(null, data, progress, resolve, reject);
-                      } catch (err) {
-                        reject(err);
-                      }
-                    });
-                  }
-                }
-              }
-              return deferred.resolve();
-            }, false);
-          });
+    this.isCurrentTaskValid(taskRef)
+      .then(nextTaskRef => nextTaskRef.transaction(task => {
+        /* istanbul ignore if */
+        if (_.isNull(task)) {
+          return task;
         }
-      }
-    } else {
-      deferred.resolve();
-    }
-
+        if (!_.isPlainObject(task)) {
+          malformed = true;
+          const error = new Error('Task was malformed');
+          let errorStack = null;
+          if (!this.suppressStack) {
+            errorStack = error.stack;
+          }
+          return {
+            _state: this.errorState,
+            _state_changed: SERVER_TIMESTAMP,
+            _error_details: {
+              error: error.message,
+              original_task: task,
+              error_stack: errorStack
+            }
+          };
+        }
+        if (_.isUndefined(task._state)) {
+          task._state = null;
+        }
+        task._state_changed = SERVER_TIMESTAMP;
+        task._owner = this.getProcessId(this.taskNumber + 1);
+        task._progress = 0;
+        const taskPatch = taskModifier({ ...task });
+        if (taskPatch) {
+          return {
+            ...task,
+            ...taskPatch,
+          }
+        }
+        return undefined;
+      }, (error, committed, snapshot) => {
+        /* istanbul ignore if */
+        if (error) {
+          if (++retries < MAX_TRANSACTION_ATTEMPTS) {
+            logger.debug(this.getLogEntry('errored while attempting to ' +
+              'claim a new task, retrying'), error);
+            return setImmediate(::this.tryToProcessTask, taskRef, taskModifier, resetToState, afterTaskUpdate, deferred);
+          }
+          const errorMsg = 'errored while attempting to claim a new task ' +
+            'too many times, no longer retrying';
+          logger.debug(this.getLogEntry(errorMsg), error);
+          return deferred.reject(new Error(errorMsg));
+        } else if (committed && snapshot.exists()) {
+          if (malformed) {
+            logger.debug(this.getLogEntry('found malformed entry ' +
+              getKey(snapshot)));
+          } else {
+            /* istanbul ignore if */
+            if (this.busy) {
+              // Worker has become busy while the transaction was processing
+              // so give up the task for now so another worker can claim it
+              this.resetTask(nextTaskRef, true, resetToState);
+            } else {
+              this.busy = true;
+              this.taskNumber += 1;
+              logger.debug(this.getLogEntry('claimed ' + getKey(snapshot)));
+              this.currentTaskRef = getRef(snapshot);
+              this.currentTaskListener = this.currentTaskRef
+                .child('_owner')
+                .on('value', ownerSnapshot => {
+                  const id = this.getProcessId(this.taskNumber);
+                  /* istanbul ignore else */
+                  if (ownerSnapshot.val() !== id && !_.isNull(this.currentTaskRef) && !_.isNull(this.currentTaskListener)) {
+                    this.currentTaskRef.child('_owner').off('value', this.currentTaskListener);
+                    this.currentTaskRef = null;
+                    this.currentTaskListener = null;
+                  }
+                });
+              const data = snapshot.val();
+              if (this.sanitize) {
+                ['_state', '_state_changed', '_owner', '_progress', '_error_details']
+                  .forEach(reserved => {
+                    if (snapshot.hasChild(reserved)) {
+                      delete data[reserved];
+                    }
+                  });
+              } else {
+                data._id = getKey(snapshot);
+              }
+              afterTaskUpdate(data);
+            }
+          }
+        }
+        return deferred.resolve();
+      }, false))
+      .catch(err => {
+        if (err) {
+          logger.error(err);
+          deferred.reject(err);
+        } else {
+          deferred.resolve();
+        }
+      });
     return deferred.promise;
+  }
+
+  tryToBackoff(snapshot) {
+    this.setupBackoff(snapshot);
+    return this.tryToProcessTask(this.newBackoffTaskRef, task => {
+      if (task._state === this.backoffState) {
+        task._state = this.backoffInProgressState;
+        return task;
+      } else {
+        logger.debug(this.getLogEntry(`task no longer in correct state: expected ${this.backoffState}, got ${task._state}`));
+        return false;
+      }
+    }, this.backoffState, () => {
+      this.backoff.backoff();
+    });
+  }
+
+  tryToStart() {
+    return this.tryToProcessTask(this.newTaskRef, task => {
+      if (task._state === this.startState) {
+        task._state = this.inProgressState;
+        return task;
+      } else {
+        logger.debug(this.getLogEntry(`task no longer in correct state: expected ${this.startState}, got ${task._state}`));
+        return false;
+      }
+    }, this.startState, data => {
+      const progress = this.updateProgress(this.taskNumber);
+      const resolve = this.resolve(this.taskNumber);
+      const reject = this.reject(this.taskNumber);
+      setImmediate(() => {
+        try {
+          this.processingFunction.call(null, data, progress, resolve, reject);
+        } catch (err) {
+          reject(err);
+        }
+      });
+    });
   }
 
   setupTimeouts() {
@@ -567,10 +650,7 @@ export default class Worker {
         const expires = Math.max(0, startTime - now + this.taskTimeout);
         const ref = getRef(snapshot);
         this.owners[taskName] = snapshot.child('_owner').val();
-        this.expiryTimeouts[taskName] = setTimeout(
-          ::this.resetTask,
-          expires,
-          ref, false);
+        this.expiryTimeouts[taskName] = setTimeout(::this.resetTask, expires, ref, false);
       };
 
       this.processingTaskAddedListener = this.processingTasksRef.on('child_added',
@@ -654,6 +734,51 @@ export default class Worker {
       ));
   }
 
+  onBackoffReady(backoffRef) {
+    let existedBefore;
+    backoffRef.transaction(task => {
+        existedBefore = true;
+        if (_.isNull(task)) {
+          existedBefore = false;
+          return task;
+        }
+        if (task._state === this.backoffInProgressState) {
+          task._state = this.startState;
+          task._state_changed = SERVER_TIMESTAMP;
+          task._owner = null;
+          return task;
+        }
+        return undefined;
+      }, (transactionError, committed, snapshot) => {
+        /* istanbul ignore if */
+        if (transactionError) {
+          if (++retries < MAX_TRANSACTION_ATTEMPTS) {
+            logger.debug(this.getLogEntry('reject task errored, retrying'), transactionError);
+            setImmediate(::this.setupBackoff);
+          } else {
+            const errorMsg = 'reject task errored too many times, no longer retrying';
+            logger.debug(this.getLogEntry(errorMsg), transactionError);
+          }
+        } else {
+          if (committed && existedBefore) {
+            logger.debug(this.getLogEntry('errored while attempting to complete ' + getKey(snapshot)));
+          } else {
+            logger.debug(this.getLogEntry('Can\'t set task to start after backoff- current task no longer owned by this process'));
+          }
+          this.busy = false;
+          this.tryToStart();
+        }
+      }, false)
+      .catch(ex => {
+        logger.error(ex)
+      });
+  }
+
+  setupBackoff(snapshot) {
+    logger.debug(this.getLogEntry('Inside setupBackoff'));
+    this.backoff = Worker.getBackoff(snapshot.key, this.backoffConf, this.taskRetries, this.onBackoffReady.bind(this, snapshot.ref));
+  }
+
   setTaskSpec(taskSpec) {
     // Increment the taskNumber so that a task being processed before the change
     // doesn't continue to use incorrect data
@@ -661,6 +786,10 @@ export default class Worker {
 
     if (!_.isNull(this.newTaskListener)) {
       this.newTaskRef.off('child_added', this.newTaskListener);
+    }
+
+    if (!_.isNull(this.backoffTaskListener)) {
+      this.newBackoffTaskRef.off('child_added', this.backoffTaskListener);
     }
 
     if (!_.isNull(this.currentTaskListener)) {
@@ -675,6 +804,8 @@ export default class Worker {
     if (Worker.isValidTaskSpec(taskSpec)) {
       const { startState = null, inProgressState, finishedState = null, errorState = DEFAULT_ERROR_STATE, timeout = null, retries = DEFAULT_RETRIES } = taskSpec;
       this.startState = startState;
+      this.backoffState = `__BACKOFF__${this.startState}`;
+      this.backoffInProgressState = `__INPROGRESS__:${this.backoffState}`;
       this.inProgressState = inProgressState;
       this.finishedState = finishedState;
       this.errorState = errorState;
@@ -685,8 +816,18 @@ export default class Worker {
         .equalTo(this.startState)
         .limitToFirst(1);
       logger.debug(this.getLogEntry('listening'));
-      this.newTaskListener = this.newTaskRef.on('child_added', () => this.tryToProcess(),
-        /* istanbul ignore next */ error => logger.debug(this.getLogEntry('errored listening to Firebase'), error));
+      this.newTaskListener = this.newTaskRef.on('child_added', ::this.tryToStart,
+        /* istanbul ignore next */ error => logger.debug(this.getLogEntry('errored listening to Firebase'), error)
+      );
+
+      if (this.backoffConf) {
+        this.newBackoffTaskRef = this.tasksRef
+          .orderByChild('_state')
+          .equalTo(this.backoffState)
+          .limitToFirst(1);
+        this.backoffTaskListener = this.newBackoffTaskRef.on('child_added', ::this.tryToBackoff,
+          /* istanbul ignore next */ error => logger.debug(this.getLogEntry('errored listening to Firebase'), error));
+      }
     } else {
       logger.debug(this.getLogEntry('invalid task spec, not listening for new ' +
         'tasks'));
@@ -697,7 +838,9 @@ export default class Worker {
       this.taskTimeout = null;
       this.taskRetries = DEFAULT_RETRIES;
       this.newTaskRef = null;
+      this.newBackoffTaskRef = null;
       this.newTaskListener = null;
+      this.backoffTaskListener = null;
     }
     this.setupTimeouts();
   }
