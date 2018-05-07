@@ -1,5 +1,5 @@
 {
-  "name": "firebase-queue",
+  "name": "@kubric/firebase-queue",
   "version": "0.0.1",
   "description": "An improved version of firebase-queue which supports easy creation of workflows",
   "keywords": [
@@ -12,10 +12,7 @@
     "pipeline"
   ],
   "license": "MIT",
-  "author": {
-    "name": "Jophin Joseph",
-    "url": "https://kubric.io/"
-  },
+  "author": "Kubric Team",
   "homepage": "https://github.com/KubricIO/firebase-queue",
   "repository": "https://github.com/KubricIO/firebase-queue.git",
   "main": "build/index.js",
@@ -72,6 +69,6 @@
     "build": "gulp",
     "wftests": "node build/Workflow/tests/index.js",
     "wfstats": "node build/Workflow/tests/stats.js",
-    "publish": "npm run test && npm run publish"
+    "publish": "yarn version --no-git-tag-version && gulp publish && npm publish ./release"
   }
 }
