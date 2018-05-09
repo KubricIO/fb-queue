@@ -44,7 +44,7 @@ const taskHandler = (async (task, handler, jobData, progress, resolve, reject) =
 });
 
 export default class Task {
-  constructor({ previousState, jobType, retries, timeout, id, name, outputData = {}, numWorkers }) {
+  constructor({ previousState, jobType, retries, timeout, id, name, outputData, numWorkers }) {
     this.jobType = jobType;
     this.retries = retries;
     this.timeout = timeout;
