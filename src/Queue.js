@@ -161,6 +161,9 @@ export default class Queue {
         .child(this.specId)
         .on('value', taskSpecSnap => {
           const taskSpec = {
+            isWorkflowTask: taskSpecSnap.child('isWorkflowTask').val(),
+            isFirstTask: taskSpecSnap.child('isFirstTask').val(),
+            isLastTask: taskSpecSnap.child('isLastTask').val(),
             startState: taskSpecSnap.child('start_state').val(),
             inProgressState: taskSpecSnap.child('in_progress_state').val(),
             finishedState: taskSpecSnap.child('finished_state').val(),

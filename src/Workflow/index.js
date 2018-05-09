@@ -106,6 +106,7 @@ export default class Job {
     const pushRef = QueueDB.getTasksRef().push({
       ...jobData,
       __display__: this.getInputData(jobData),
+      __wfstatus__: 0,
       _state: this.startTask.getStartState(),
       __type__: this.type,
       __app__: this.app,

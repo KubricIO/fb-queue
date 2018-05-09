@@ -32,7 +32,7 @@ const resolvedTaskHandler = async (task, jobData, resolve, taskResults) => {
   });
 };
 
-const taskHandler = (async (task, handler, jobData, progress, resolve, reject) => {
+const taskHandler = async (task, handler, jobData, progress, resolve, reject) => {
   try {
     handler(jobData, progress, resolvedTaskHandler.bind(null, task, jobData, resolve), async err => {
       reject(err);
@@ -41,10 +41,10 @@ const taskHandler = (async (task, handler, jobData, progress, resolve, reject) =
     logger.error(ex);
     reject(ex);
   }
-});
+};
 
 export default class Task {
-  constructor({ previousState, jobType, retries, timeout, id, name, outputData, numWorkers }) {
+  constructor({ previousState, isFirstTask, isLastTask, jobType, retries, timeout, id, name, outputData, numWorkers }) {
     this.jobType = jobType;
     this.retries = retries;
     this.timeout = timeout;
@@ -53,13 +53,15 @@ export default class Task {
     this.name = name;
     this.outputData = outputData;
     this.previousState = previousState;
+    this.isFirstTask = isFirstTask;
+    this.isLastTask = isLastTask;
     this.create();
   }
 
   static createTasks(jobType, tasks = [], defaults = {}) {
     const { timeout: defaultTimeout, retries: defaultRetries, numWorkers: defaultNumWorkers = 1 } = defaults;
     let previousState;
-    return tasks.reduce((acc, { retries, timeout, numWorkers, id, ...rest }) => {
+    return tasks.reduce((acc, { retries, timeout, numWorkers, id, ...rest }, index) => {
       acc[id] = previousState = new Task({
         ...rest,
         id,
@@ -68,6 +70,8 @@ export default class Task {
         retries: retries || defaultRetries,
         timeout: timeout || defaultTimeout,
         numWorkers: numWorkers || defaultNumWorkers,
+        isLastTask: index === (tasks.length - 1),
+        isFirstTask: index === 0,
       });
       return acc;
     }, {});
@@ -112,6 +116,9 @@ export default class Task {
   create() {
     const startState = typeof this.previousState !== 'undefined' ? this.previousState.getFinishedState() : this.getStartState();
     const specData = {
+      isWorkflowTask: true,
+      isFirstTask: this.isFirstTask,
+      isLastTask: this.isLastTask,
       start_state: startState,
       in_progress_state: this.getInProgressState(),
       finished_state: this.getFinishedState(),

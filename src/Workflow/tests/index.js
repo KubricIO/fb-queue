@@ -9,7 +9,7 @@ Workflow.initialize({
 const job = new Workflow({
   app: 'server-utils',
   type: 'TestJob',
-  numWorkers: 5,
+  numWorkers: 1,
   inputData({ title }) {
     return [{
       name: "Job title",
@@ -27,7 +27,7 @@ const job = new Workflow({
   }, {
     id: 'state_2',
     name: 'State 2',
-    numWorkers: 20,
+    retries: 3,
     outputData() {
       return [{
         field1: 'State 2'
@@ -61,13 +61,15 @@ const job = new Workflow({
 });
 
 job.on('state_1', (data, progress, resolve, reject) => {
-  logger.info({
-    message: `${data.title} state_1 resolved`,
-    time: new Date(),
-  });
-  resolve({
-    progress: 20,
-  });
+  setTimeout(() => {
+    logger.info({
+      message: `${data.title} state_1 resolved`,
+      time: new Date(),
+    });
+    resolve({
+      progress: 20,
+    });
+  }, 2000);
 });
 
 job.on('state_2', (data, progress, resolve, reject) => {
@@ -76,10 +78,10 @@ job.on('state_2', (data, progress, resolve, reject) => {
       message: `${data.title} state_2 resolved`,
       time: new Date(),
     });
-    resolve({
+    reject({
       progress: 40,
     });
-  }, 5000);
+  }, 2000);
 });
 
 job.on('state_3', (data, progress, resolve, reject) => {
@@ -91,7 +93,6 @@ job.on('state_3', (data, progress, resolve, reject) => {
       message: `${data.title} state_3 resolved`,
       time: new Date(),
     });
-
   }, 10000);
 });
 
@@ -110,87 +111,89 @@ job.on('state_4', (data, progress, resolve, reject) => {
 
 
 job.on('end', (data, progress, resolve, reject) => {
-  logger.info({
-    message: `${data.title} end resolved`,
-    time: new Date(),
-  });
-  resolve({
-    progress: 100,
-  });
+  setTimeout(() => {
+    logger.info({
+      message: `${data.title} end resolved`,
+      time: new Date(),
+    });
+    resolve({
+      progress: 100,
+    });
+  }, 5000);
 });
 
 job.add({
   title: 'job1',
 });
 
-job.add({
-  title: 'job2',
-});
-
-job.add({
-  title: 'job3',
-});
-
-job.add({
-  title: 'job4',
-});
-job.add({
-  title: 'job11',
-});
-
-job.add({
-  title: 'job12',
-});
-
-job.add({
-  title: 'job13',
-});
-
-job.add({
-  title: 'job14',
-});
-job.add({
-  title: 'job21',
-});
-
-job.add({
-  title: 'job22',
-});
-
-job.add({
-  title: 'job23',
-});
-
-job.add({
-  title: 'job24',
-});
-job.add({
-  title: 'job31',
-});
-
-job.add({
-  title: 'job32',
-});
-
-job.add({
-  title: 'job33',
-});
-
-job.add({
-  title: 'job34',
-});
-job.add({
-  title: 'job41',
-});
-
-job.add({
-  title: 'job42',
-});
-
-job.add({
-  title: 'job43',
-});
-
-job.add({
-  title: 'job44',
-});
+// job.add({
+//   title: 'job2',
+// });
+//
+// job.add({
+//   title: 'job3',
+// });
+//
+// job.add({
+//   title: 'job4',
+// });
+// job.add({
+//   title: 'job11',
+// });
+//
+// job.add({
+//   title: 'job12',
+// });
+//
+// job.add({
+//   title: 'job13',
+// });
+//
+// job.add({
+//   title: 'job14',
+// });
+// job.add({
+//   title: 'job21',
+// });
+//
+// job.add({
+//   title: 'job22',
+// });
+//
+// job.add({
+//   title: 'job23',
+// });
+//
+// job.add({
+//   title: 'job24',
+// });
+// job.add({
+//   title: 'job31',
+// });
+//
+// job.add({
+//   title: 'job32',
+// });
+//
+// job.add({
+//   title: 'job33',
+// });
+//
+// job.add({
+//   title: 'job34',
+// });
+// job.add({
+//   title: 'job41',
+// });
+//
+// job.add({
+//   title: 'job42',
+// });
+//
+// job.add({
+//   title: 'job43',
+// });
+//
+// job.add({
+//   title: 'job44',
+// });

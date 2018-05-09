@@ -114,6 +114,9 @@ export default class Worker {
       const timedOut = ((this.taskTimeout && timeSinceUpdate > this.taskTimeout) || immediate);
       if (correctState && correctOwner && timedOut) {
         task._state = this.startState;
+        if (this.isWorkflowTask && this.isFirstTask) {
+          task.__wfstatus__ = 0;
+        }
         task._state_changed = SERVER_TIMESTAMP;
         task._owner = null;
         task._progress = null;
@@ -197,6 +200,9 @@ export default class Worker {
             outputTask._owner = null;
             outputTask._progress = 100;
             outputTask._error_details = null;
+            if (this.isWorkflowTask && this.isLastTask) {
+              outputTask.__wfstatus__ = 1;
+            }
             return outputTask;
           }
           return undefined;
@@ -293,8 +299,14 @@ export default class Worker {
             }
             if (attempts >= this.taskRetries) {
               task._state = this.errorState;
+              if (this.isWorkflowTask) {
+                task.__wfstatus__ = -1;
+              }
             } else {
               task._state = this.startState;
+              if (this.isWorkflowTask && this.isFirstTask) {
+                task.__wfstatus__ = 0;
+              }
             }
             task._state_changed = SERVER_TIMESTAMP;
             task._owner = null;
@@ -449,6 +461,9 @@ export default class Worker {
               }
               if (task._state === this.startState) {
                 task._state = this.inProgressState;
+                if(this.isWorkflowTask) {
+                  task.__wfstatus__ = 10;
+                }
                 task._state_changed = SERVER_TIMESTAMP;
                 task._owner = this.getProcessId(this.taskNumber + 1);
                 task._progress = 0;
@@ -676,7 +691,10 @@ export default class Worker {
     }
 
     if (Worker.isValidTaskSpec(taskSpec)) {
-      const { startState = null, inProgressState, finishedState = null, errorState = DEFAULT_ERROR_STATE, timeout = null, retries = DEFAULT_RETRIES } = taskSpec;
+      const { startState = null, inProgressState, finishedState = null, errorState = DEFAULT_ERROR_STATE, timeout = null, retries = DEFAULT_RETRIES, isWorkflowTask = false, isFirstTask = false, isLastTask = false } = taskSpec;
+      this.isFirstTask = isFirstTask;
+      this.isLastTask = isLastTask;
+      this.isWorkflowTask = isWorkflowTask;
       this.startState = startState;
       this.inProgressState = inProgressState;
       this.finishedState = finishedState;
@@ -691,8 +709,10 @@ export default class Worker {
       this.newTaskListener = this.newTaskRef.on('child_added', () => this.tryToProcess(),
         /* istanbul ignore next */ error => logger.debug(this.getLogEntry('errored listening to Firebase'), error));
     } else {
-      logger.debug(this.getLogEntry('invalid task spec, not listening for new ' +
-        'tasks'));
+      logger.debug(this.getLogEntry('invalid task spec, not listening for new tasks'));
+      this.isFirstTask = false;
+      this.isLastTask = false;
+      this.isWorkflowTask = false;
       this.startState = null;
       this.inProgressState = null;
       this.finishedState = null;
