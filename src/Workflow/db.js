@@ -31,51 +31,35 @@ export default class QueueDB {
     return firebaseAdmin.database().ref(QueueDB.dbRoot);
   }
 
-  static getTasksRef() {
-    return firebaseAdmin.database().ref(`${QueueDB.dbRoot}/tasks`);
+  static getTasksRef(app, jobType) {
+    return firebaseAdmin.database().ref(`${QueueDB.dbRoot}/apps/${app}/${jobType}/tasks`);
   }
 
-  static getSpecsRef() {
-    return firebaseAdmin.database().ref(`${QueueDB.dbRoot}/specs`);
+  static getTaskRef(app, jobType, taskId) {
+    return firebaseAdmin.database().ref(`${QueueDB.dbRoot}/apps/${app}/${jobType}/tasks/${taskId}`);
   }
 
-  static getJobtypesRef(type) {
-    return firebaseAdmin.database().ref(`${QueueDB.dbRoot}/jobtypes/${type}`);
+  static getSpecsRef(app, jobType) {
+    return firebaseAdmin.database().ref(`${QueueDB.dbRoot}/apps/${app}/${jobType}/specs`);
   }
 
-  static getTaskRef(key) {
-    return firebaseAdmin.database().ref(`${QueueDB.dbRoot}/tasks/${key}`);
+  static getSpecRef(app, jobType, specId) {
+    return firebaseAdmin.database().ref(`${QueueDB.dbRoot}/apps/${app}/${jobType}/specs/${specId}`);
   }
 
-  static getSpecRef(type) {
-    return firebaseAdmin.database().ref(`${QueueDB.dbRoot}/specs/${type}`);
+  static getAllTasksRef(user) {
+    return firebaseAdmin.database().ref(`${QueueDB.dbRoot}/alltasks/${user}`);
   }
 
-  static getLockRef(name) {
-    return firebaseAdmin.database().ref(`${QueueDB.dbRoot}/locks/${name}`);
+  static getAllTasksRefFor(user, key) {
+    return firebaseAdmin.database().ref(`${QueueDB.dbRoot}/alltasks/${user}/${key}`);
   }
 
-  static getRefForState(state) {
-    return firebaseAdmin.database()
-      .ref(`${QueueDB.dbRoot}/tasks`)
-      .orderByChild('_state')
-      .equalTo(state);
-  }
 
-  static getStatsRef() {
-    return firebaseAdmin.database().ref(`${QueueDB.dbRoot}/stats`);
-  }
-
-  static getStatsRefsFor(appName, jobType, indexValue) {
-    const statsPath = `${QueueDB.dbRoot}/stats`;
-    const statsRefs = [
-      firebaseAdmin.database().ref(`${statsPath}/__stats__`),
-      firebaseAdmin.database().ref(`${statsPath}/${appName}/__stats__`),
-      firebaseAdmin.database().ref(`${statsPath}/${appName}/${jobType}/__stats__`),
-    ];
-    if (typeof indexValue !== 'undefined') {
-      statsRefs.push(firebaseAdmin.database().ref(`${statsPath}/${appName}/${jobType}/${indexValue}/__stats__`));
-    }
-    return statsRefs;
-  }
+  // static getRefForState(state) {
+  //   return firebaseAdmin.database()
+  //     .ref(`${QueueDB.dbRoot}/tasks`)
+  //     .orderByChild('_state')
+  //     .equalTo(state);
+  // }
 }

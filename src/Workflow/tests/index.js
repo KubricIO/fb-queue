@@ -2,12 +2,11 @@ import conf from '../../../key';
 import { Workflow } from "../../index";
 import logger from 'winston';
 
-
 const config = {
   numWorkers: 1,
   eventHandlers: {
     status(wfStatus) {
-      // logger.info(wfStatus);
+      logger.info(wfStatus);
     }
   },
   inputData({ title }) {
@@ -103,131 +102,148 @@ const setupQueue = job => {
   });
 };
 
-const addJobs = job => {
+const addJobs = (job, user) => {
   job.add({
     title: 'job1',
+    user,
+  }, {
+    indexField: 'ad',
+    indexId: "test",
   });
 
   job.add({
     title: 'job2',
+    user,
   });
 
   job.add({
     title: 'job3',
+    user,
   });
 
   job.add({
     title: 'job4',
+    user,
   });
 
   job.add({
     title: 'job11',
+    user,
   });
 
   job.add({
     title: 'job12',
+    user,
   });
 
   job.add({
     title: 'job13',
+    user,
   });
 
   job.add({
     title: 'job14',
+    user,
   });
   job.add({
     title: 'job21',
+    user,
   });
 
   job.add({
     title: 'job22',
+    user,
   });
 
   job.add({
     title: 'job23',
+    user,
   });
 
   job.add({
     title: 'job24',
+    user,
   });
   job.add({
     title: 'job31',
+    user,
   });
 
   job.add({
     title: 'job32',
+    user,
   });
 
   job.add({
     title: 'job33',
+    user,
   });
 
   job.add({
     title: 'job34',
+    user,
   });
   job.add({
     title: 'job41',
+    user,
   });
 
   job.add({
     title: 'job42',
+    user,
   }, {
+    indexField: 'campaign',
     indexId: 'abc',
   });
 
   job.add({
     title: 'job43',
+    user,
   }, {
+    indexField: 'campaign',
     indexId: 'abc',
   });
 
   job.add({
     title: 'job44',
+    user,
   }, {
+    indexField: 'campaign',
     indexId: 'abc',
   });
 };
 
 Workflow.initialize({
   firebase: conf,
-}).then(() => {
-  const job1 = new Workflow({
-    ...config,
-    app: 'server-utils1',
-    type: 'TestJob1',
-  });
-  setupQueue(job1);
-  addJobs(job1);
 });
+const job1 = new Workflow({
+  ...config,
+  app: 'server-utils1',
+  type: 'TestJob1',
+});
+setupQueue(job1);
+addJobs(job1);
 
-//
-// let logCounter = 0;
-// const switchOff = job1.addStatsListener(stats => {
-//   logger.info("TestJob1 stats", stats);
-//   logCounter++;
-//   if (logCounter === 5) {
-//     switchOff();
-//   }
-// });
+const job2 = new Workflow({
+  ...config,
+  app: 'server-utils1',
+  type: `TestJob2`
+});
+setupQueue(job2);
+addJobs(job2, "jophin2u@gmail.com");
 
-// job1.addStatsListener(logger.info.bind(logger, "TestJob1/abc stats"), 'abc');
-// const job2 = new Workflow({
-//   ...config,
-//   app: 'server-utils1',
-//   type: `TestJob2`
-// });
-// setupQueue(job2);
-//
-// const job3 = new Workflow({
-//   ...config,
-//   app: 'server-utils2',
-//   type: 'TestJob2',
-// });
-// setupQueue(job3);
-//
-// const job4 = new Workflow({
-//   ...config,
-//   app: 'server-utils2',
-//   type: 'TestJob3',
-// });
-// setupQueue(job4);
+const job3 = new Workflow({
+  ...config,
+  app: 'server-utils2',
+  type: 'TestJob2',
+});
+setupQueue(job3);
+addJobs(job3, "jophin3u@gmail.com");
+
+const job4 = new Workflow({
+  ...config,
+  app: 'server-utils2',
+  type: 'TestJob3',
+});
+setupQueue(job4);
+addJobs(job4, "jophin4u@gmail.com");

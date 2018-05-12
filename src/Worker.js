@@ -85,6 +85,14 @@ export default class Worker {
     return `QueueWorker ${this.workerId} ${message}`;
   };
 
+  updateWfStatus(task, status) {
+    task.__wfstatus__ = status;
+    if (!_.isUndefined(task.__index__)) {
+      task.__index_wfstatus__ = `${task.__index__}:${task.__wfstatus__}`;
+    }
+    return task;
+  }
+
   /**
    * Returns the state of a task to the start state.
    * @param {firebase.database.Reference} taskRef Firebase Realtime Database
@@ -115,7 +123,7 @@ export default class Worker {
       if (correctState && correctOwner && timedOut) {
         task._state = this.startState;
         if (this.isWorkflowTask && this.isFirstTask) {
-          task.__wfstatus__ = 0;
+          task = this.updateWfStatus(task, 0);
         }
         task._state_changed = SERVER_TIMESTAMP;
         task._owner = null;
@@ -201,7 +209,7 @@ export default class Worker {
             outputTask._progress = 100;
             outputTask._error_details = null;
             if (this.isWorkflowTask && this.isLastTask) {
-              outputTask.__wfstatus__ = 1;
+              outputTask = this.updateWfStatus(outputTask, 1);
             }
             return outputTask;
           }
@@ -300,12 +308,12 @@ export default class Worker {
             if (attempts >= this.taskRetries) {
               task._state = this.errorState;
               if (this.isWorkflowTask) {
-                task.__wfstatus__ = -1;
+                task = this.updateWfStatus(task, -1);
               }
             } else {
               task._state = this.startState;
               if (this.isWorkflowTask && this.isFirstTask) {
-                task.__wfstatus__ = 0;
+                task = this.updateWfStatus(task, 0);
               }
             }
             task._state_changed = SERVER_TIMESTAMP;
@@ -414,7 +422,7 @@ export default class Worker {
         if (_.isNull(task)) {
           return task;
         }
-        task.__wfstatus__ = 10;
+        task = this.updateWfStatus(task, 10);
         return task;
       }, (error, committed, snapshot) => {
         if (error) {

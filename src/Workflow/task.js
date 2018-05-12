@@ -44,13 +44,14 @@ const taskHandler = async (task, handler, jobData, progress, resolve, reject) =>
 };
 
 export default class Task {
-  constructor({ previousState, isFirstTask, isLastTask, jobType, retries, timeout, id, name, outputData, numWorkers }) {
+  constructor({ app, previousState, isFirstTask, isLastTask, jobType, retries, timeout, id, name, outputData, numWorkers }) {
     this.jobType = jobType;
     this.retries = retries;
     this.timeout = timeout;
     this.numWorkers = numWorkers;
     this.id = id;
     this.name = name;
+    this.app = app;
     this.outputData = outputData;
     this.previousState = previousState;
     this.isFirstTask = isFirstTask;
@@ -58,7 +59,7 @@ export default class Task {
     this.create();
   }
 
-  static createTasks(jobType, tasks = [], defaults = {}) {
+  static createTasks(app, jobType, tasks = [], defaults = {}) {
     const { timeout: defaultTimeout, retries: defaultRetries, numWorkers: defaultNumWorkers = 1 } = defaults;
     let previousState;
     return tasks.reduce((acc, { retries, timeout, numWorkers, id, ...rest }, index) => {
@@ -66,6 +67,7 @@ export default class Task {
         ...rest,
         id,
         previousState,
+        app,
         jobType,
         retries: retries || defaultRetries,
         timeout: timeout || defaultTimeout,
@@ -78,15 +80,15 @@ export default class Task {
   }
 
   getStateName(action) {
-    return `${this.getSpecName()}_${action}`;
+    return `${this.id}_${action}`;
   }
 
   getWorkerCount() {
     return this.numWorkers;
   }
 
-  getSpecName() {
-    return `${this.jobType}_${this.id}`;
+  getId() {
+    return this.id;
   }
 
   getStartState() {
@@ -130,7 +132,7 @@ export default class Task {
     if (typeof this.timeout !== 'undefined') {
       specData.timeout = this.timeout;
     }
-    return QueueDB.getSpecRef(this.getSpecName()).set(specData);
+    return QueueDB.getSpecRef(this.app, this.jobType, this.id).set(specData);
   }
 
 };
