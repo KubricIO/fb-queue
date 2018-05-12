@@ -2,9 +2,6 @@ import conf from '../../../key';
 import { Workflow } from "../../index";
 import logger from 'winston';
 
-Workflow.initialize({
-  firebase: conf,
-});
 
 const config = {
   numWorkers: 1,
@@ -104,7 +101,9 @@ const setupQueue = job => {
       });
     }, 2000);
   });
+};
 
+const addJobs = job => {
   job.add({
     title: 'job1',
   });
@@ -189,15 +188,29 @@ const setupQueue = job => {
   });
 };
 
-const job1 = new Workflow({
-  ...config,
-  app: 'server-utils1',
-  type: 'TestJob1',
+Workflow.initialize({
+  firebase: conf,
+}).then(() => {
+  const job1 = new Workflow({
+    ...config,
+    app: 'server-utils1',
+    type: 'TestJob1',
+  });
+  setupQueue(job1);
+  addJobs(job1);
 });
-setupQueue(job1);
 
-job1.setStatsListener(logger.info.bind(logger, "TestJob1 stats"));
-job1.setStatsListener(logger.info.bind(logger, "TestJob1/abc stats"), 'abc');
+//
+// let logCounter = 0;
+// const switchOff = job1.addStatsListener(stats => {
+//   logger.info("TestJob1 stats", stats);
+//   logCounter++;
+//   if (logCounter === 5) {
+//     switchOff();
+//   }
+// });
+
+// job1.addStatsListener(logger.info.bind(logger, "TestJob1/abc stats"), 'abc');
 // const job2 = new Workflow({
 //   ...config,
 //   app: 'server-utils1',

@@ -63,7 +63,7 @@ export default class QueueDB {
   }
 
   static getStatsRef() {
-    return firebaseAdmin.database().ref(`${QueueDB.dbRoot}/stats/__stats__`);
+    return firebaseAdmin.database().ref(`${QueueDB.dbRoot}/stats`);
   }
 
   static getStatsRefsFor(appName, jobType, indexValue) {

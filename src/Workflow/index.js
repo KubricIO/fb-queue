@@ -43,13 +43,71 @@ export default class Job {
     this.eventHandlers = eventHandlers;
   }
 
-  static initialize({ firebase }) {
+  static async initialize({ firebase }) {
     try {
       QueueDB.initialize(firebase);
-      Job.initialized = true;
+      return QueueDB.getStatsRef()
+        .remove()
+        .then(() => Job.setupTasksListeners())
+        .then(() => (Job.initialized = true));
     } catch (ex) {
       throw ex;
     }
+  }
+
+  static updateStatsForTask(taskSnap, statTransformer) {
+    const taskVal = taskSnap.val();
+    if (!_.isNull(taskVal)) {
+      const { __app__: appName, __type__: jobType, __index__: indexValue, __wfstatus__: wfStatus } = taskVal;
+      if (!_.isUndefined(appName) && !_.isUndefined(jobType)) {
+        const statsRefs = QueueDB.getStatsRefsFor(appName, jobType, indexValue);
+        return Job.updateStats(statsRefs, 0, wfStatus, statTransformer)
+          .catch(ex => {
+            logger.error('Erred while setting up stats listener');
+            logger.error(ex);
+          });
+      }
+    }
+    return Promise.resolve();
+  }
+
+  static startupStat(incrementBy, wfStatus, statsObj) {
+    const statKey = statKeyMap[wfStatus];
+    if (_.isNull(statsObj)) {
+      return {
+        [statKey]: 1,
+      }
+    } else {
+      statsObj[statKey] = (statsObj[statKey] || 0) + incrementBy;
+      return statsObj;
+    }
+  }
+
+  static setupTasksListeners() {
+    const tasksRef = QueueDB.getTasksRef();
+    tasksRef.on('child_removed', oldTaskSnap => {
+      if (!_.isNull(oldTaskSnap.val())) {
+        Job.updateStatsForTask(oldTaskSnap, Job.startupStat.bind(Job, -1));
+      }
+    });
+    return new Promise((resolve, reject) => {
+      tasksRef.once('value', tasksSnap => {
+        const promises = [];
+        tasksSnap.forEach(taskSnap => {
+          const taskVal = taskSnap.val();
+          if (!_.isNull(taskVal)) {
+            const { __app__: appName, __type__: jobType, __index__: indexValue, __wfstatus__: wfStatus } = taskVal;
+            if (!_.isUndefined(appName) && !_.isUndefined(jobType) && (wfStatus === 0 || wfStatus === 10)) {
+              Job.setupStatListeners(taskSnap.ref);
+            }
+            promises.push(Job.updateStatsForTask(taskSnap, Job.startupStat.bind(Job, 1)));
+          }
+        });
+        Promise.all(promises)
+          .then(resolve)
+          .catch(reject);
+      });
+    });
   }
 
   static getTaskCount(state) {
@@ -77,6 +135,7 @@ export default class Job {
     const appQueues = Job.queues[app] || [];
     if (appQueues.length > 0) {
       const promises = appQueues.map(queue => queue.shutdown());
+      QueueDB.getTasksRef().off(); //Removes all callbacks for all events on that node
       Promise.all(promises)
         .then(res => logger.debug(`${appQueues.length} queues shut down for app ${app}`))
         .catch(err => logger.error(err));
@@ -111,45 +170,49 @@ export default class Job {
     }
   }
 
-  static updateStatsFor(taskRef, statKey, wfStatus, ref) {
-    return ref.transaction(statsObject => {
-      logger.debug("Status", wfStatus);
-      logger.debug("Status", taskRef.key);
-      logger.debug("Incoming", statsObject);
-      const pendingKey = statKeyMap[0];
-      const progressKey = statKeyMap[10];
-      if (_.isNull(statsObject)) {
-        if (wfStatus === 0) {
-          logger.debug("Returning pending 0");
-          statsObject = {
-            pending: 0,
-          };
-        } else {
-          logger.debug("Returning without update");
-          return statsObject;
+  static updateStatsFor(wfStatus, statRef, statTransformer) {
+    const statKey = statKeyMap[wfStatus];
+    return statRef.transaction(statsObject => {
+      if (statTransformer) {
+        return statTransformer(wfStatus, statsObject);
+      } else {
+        logger.debug("Status", wfStatus);
+        logger.debug("Incoming", statsObject);
+        const pendingKey = statKeyMap[0];
+        const progressKey = statKeyMap[10];
+        if (_.isNull(statsObject)) {
+          if (wfStatus === 0) {
+            logger.debug("Returning pending 0");
+            statsObject = {
+              pending: 0,
+            };
+          } else {
+            logger.debug("Returning without update");
+            return statsObject;
+          }
         }
+        const currentStat = statsObject[statKey] || 0;
+        statsObject[statKey] = currentStat + 1;
+        if (wfStatus === 10) {
+          const pendingStat = statsObject[pendingKey] || 0;
+          statsObject[pendingKey] = pendingStat > 0 ? (pendingStat - 1) : 0;
+        } else if (wfStatus === 1 || wfStatus === -1) {
+          const progressStat = statsObject[progressKey] || 0;
+          statsObject[progressKey] = progressStat > 0 ? (progressStat - 1) : 0;
+        }
+        logger.debug("Outgoing", statsObject);
+        return statsObject;
       }
-      const currentStat = statsObject[statKey] || 0;
-      statsObject[statKey] = currentStat + 1;
-      if (wfStatus === 10) {
-        const pendingStat = statsObject[pendingKey] || 0;
-        statsObject[pendingKey] = pendingStat > 0 ? (pendingStat - 1) : 0;
-      } else if (wfStatus === 1 || wfStatus === -1) {
-        const progressStat = statsObject[progressKey] || 0;
-        statsObject[progressKey] = progressStat > 0 ? (progressStat - 1) : 0;
-      }
-      logger.debug("Outgoing", statsObject);
-      return statsObject;
     }, undefined, false);
   }
 
-  static updateStats(taskRef, statsRefs, index, statKey, wfStatus) {
+  static updateStats(statsRefs, index, wfStatus, statTransformer) {
     if (index < statsRefs.length) {
-      return Job.updateStatsFor(taskRef, statKey, wfStatus, statsRefs[index])
+      return Job.updateStatsFor(wfStatus, statsRefs[index], statTransformer)
         .then(({ committed, snapshot }) => {
           logger.debug('Commmitted', committed);
           logger.debug('Snap', snapshot.val());
-          return Job.updateStats(taskRef, statsRefs, ++index, statKey, wfStatus)
+          return Job.updateStats(statsRefs, ++index, wfStatus, statTransformer)
         });
     } else {
       return Promise.resolve();
@@ -169,9 +232,8 @@ export default class Job {
       if (!_.isNull(taskVal)) {
         const { __app__: appName, __type__: jobType, __index__: indexValue } = taskVal;
         if (!_.isUndefined(appName) && !_.isUndefined(jobType)) {
-          const statKey = statKeyMap[wfStatus];
           const statsRefs = QueueDB.getStatsRefsFor(appName, jobType, indexValue);
-          Job.updateStats(taskRef, statsRefs, 0, statKey, wfStatus)
+          Job.updateStats(statsRefs, 0, wfStatus)
             .catch(ex => {
               logger.error('Erred while setting up stats listener');
               logger.error(ex);
@@ -188,10 +250,12 @@ export default class Job {
     taskRef.child('__wfstatus__').on('value', boundListener);
   }
 
-  setStatsListener(handler, indexId) {
-    return QueueDB.getStatsRefsFor(this.app, this.type, indexId)
-      .pop()
-      .on('value', statsSnap => setImmediate(handler, statsSnap.val()));
+  addStatsListener(handler, indexId) {
+    const ref = QueueDB.getStatsRefsFor(this.app, this.type, indexId).pop();
+    const listener = ref.on('value', statsSnap => {
+      setImmediate(handler, statsSnap.val())
+    });
+    return () => ref.off('value', listener);
   }
 
   add(jobData, { indexId, eventHandlers = {} } = {}) {
