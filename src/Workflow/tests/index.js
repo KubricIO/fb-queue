@@ -10,7 +10,7 @@ const config = {
   numWorkers: 1,
   eventHandlers: {
     status(wfStatus) {
-      logger.info(wfStatus);
+      // logger.info(wfStatus);
     }
   },
   inputData({ title }) {
@@ -196,23 +196,25 @@ const job1 = new Workflow({
 });
 setupQueue(job1);
 
-const job2 = new Workflow({
-  ...config,
-  app: 'server-utils1',
-  type: `TestJob2`
-});
-setupQueue(job2);
-
-const job3 = new Workflow({
-  ...config,
-  app: 'server-utils2',
-  type: 'TestJob2',
-});
-setupQueue(job3);
-
-const job4 = new Workflow({
-  ...config,
-  app: 'server-utils2',
-  type: 'TestJob3',
-});
-setupQueue(job4);
+job1.setStatsListener(logger.info.bind(logger, "TestJob1 stats"));
+job1.setStatsListener(logger.info.bind(logger, "TestJob1/abc stats"), 'abc');
+// const job2 = new Workflow({
+//   ...config,
+//   app: 'server-utils1',
+//   type: `TestJob2`
+// });
+// setupQueue(job2);
+//
+// const job3 = new Workflow({
+//   ...config,
+//   app: 'server-utils2',
+//   type: 'TestJob2',
+// });
+// setupQueue(job3);
+//
+// const job4 = new Workflow({
+//   ...config,
+//   app: 'server-utils2',
+//   type: 'TestJob3',
+// });
+// setupQueue(job4);

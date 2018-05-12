@@ -170,7 +170,7 @@ export default class Job {
         const { __app__: appName, __type__: jobType, __index__: indexValue } = taskVal;
         if (!_.isUndefined(appName) && !_.isUndefined(jobType)) {
           const statKey = statKeyMap[wfStatus];
-          const statsRefs = QueueDB.getStatsRefsFor(appName, jobType, wfStatus, indexValue);
+          const statsRefs = QueueDB.getStatsRefsFor(appName, jobType, indexValue);
           Job.updateStats(taskRef, statsRefs, 0, statKey, wfStatus)
             .catch(ex => {
               logger.error('Erred while setting up stats listener');
@@ -186,6 +186,12 @@ export default class Job {
       taskRef.child('__wfstatus__').off('value', boundListener);
     });
     taskRef.child('__wfstatus__').on('value', boundListener);
+  }
+
+  setStatsListener(handler, indexId) {
+    return QueueDB.getStatsRefsFor(this.app, this.type, indexId)
+      .pop()
+      .on('value', statsSnap => setImmediate(handler, statsSnap.val()));
   }
 
   add(jobData, { indexId, eventHandlers = {} } = {}) {
