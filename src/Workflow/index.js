@@ -8,7 +8,7 @@ export default class Job {
   static initialized = false;
   static queues = {};
 
-  constructor({ app, type = '', tasks = [], timeout, retries, numWorkers = 1, inputData }) {
+  constructor({ app, type = '', tasks = [], timeout, retries, numWorkers = 1, inputData, eventHandlers = {} }) {
     if (typeof app !== 'string' || app.length === 0) {
       throw new Error('Please provide a valid app');
     }
@@ -32,6 +32,7 @@ export default class Job {
     });
     this.startTask = this.tasks[tasks[0].id];
     this.inputData = inputData;
+    this.eventHandlers = eventHandlers;
   }
 
   static initialize({ firebase }) {
@@ -102,8 +103,17 @@ export default class Job {
     }
   }
 
-  add(jobData) {
-    return QueueDB.getTasksRef().push({
+  static statusListener(jobRef, handler, switchOffListener, wfSnap) {
+    const wfStatus = wfSnap.val();
+    setImmediate(handler, wfStatus, jobRef);
+    if (wfStatus === -1 || wfStatus === 1) {
+      switchOffListener();
+    }
+  }
+
+  add(jobData, { eventHandlers = {} } = {}) {
+    const statusChangeHandler = this.eventHandlers['status'] || eventHandlers['status'];
+    const jobRef = QueueDB.getTasksRef().push({
       ...jobData,
       __display__: this.getInputData(jobData),
       __wfstatus__: 0,
@@ -111,5 +121,10 @@ export default class Job {
       __type__: this.type,
       __app__: this.app,
     });
+    if (statusChangeHandler) {
+      const boundListener = Job.statusListener.bind(Job, jobRef, statusChangeHandler, () => jobRef.child('__wfstatus__').off('value', boundListener));
+      jobRef.child('__wfstatus__').on('value', boundListener);
+    }
+    return jobRef;
   }
 }

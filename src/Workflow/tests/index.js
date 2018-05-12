@@ -10,6 +10,11 @@ const job = new Workflow({
   app: 'server-utils',
   type: 'TestJob',
   numWorkers: 1,
+  eventHandlers: {
+    status(wfStatus) {
+      logger.info("status changed", wfStatus);
+    }
+  },
   inputData({ title }) {
     return [{
       name: "Job title",
