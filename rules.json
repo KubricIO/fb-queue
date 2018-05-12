@@ -1,0 +1,91 @@
+{
+  "rules": {
+    "queue": {
+      "jobtypes": {
+        ".read": "auth.canProcessTasks === true",
+        ".write": "auth.canAddTasks === true || auth.canProcessTasks === true",
+        "$typeId": {
+          ".validate": "newData.isBoolean()",
+        }
+      },
+      "tasks": {
+        ".read": "auth.canProcessTasks === true",
+        ".write": "auth.canAddTasks === true || auth.canProcessTasks === true",
+        ".indexOn": ["user","_state", "__type__", "__app__", "__wfstatus__", "__index__"],
+        "$taskId": {
+          ".validate": "newData.hasChildren(['__type__']) || (auth.canProcessTasks === true && newData.hasChildren(['_state', '_state_changed', '_progress']))",
+          "_state": {
+            ".validate": "newData.isString()"
+          },
+          "_state_changed": {
+            ".validate": "newData.isNumber() && (newData.val() === now || data.val() === newData.val())"
+          },
+          "_owner": {
+            ".validate": "newData.isString()"
+          },
+          "_progress": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+          },
+          "_error_details": {
+            "error": {
+              ".validate": "newData.isString()"
+            },
+            "error_stack": {
+              ".validate": "newData.isString()"
+            },
+            "previous_state": {
+              ".validate": "newData.isString()"
+            },
+            "original_task": {
+              /* This space intentionally left blank, for malformed tasks */
+            },
+            "attempts": {
+              ".validate": "newData.isNumber() && newData.val() > 0"
+            },
+            "$other": {
+              ".validate": false
+            }
+          },
+          "_id": {
+            ".validate": "newData.isString()"
+          },
+          "type": {
+            ".validate": "newData.isString()"
+          },
+          "$other": {
+            ".validate": true
+          }
+        }
+      },
+      "specs" : {
+        ".read": "auth.canAddSpecs === true || auth.canProcessTasks === true",
+        ".write": "auth.canAddSpecs === true",
+        ".indexOn": ["error_state"],
+        "$specId": {
+          ".validate": "newData.hasChild('in_progress_state')",
+          "start_state": {
+            ".validate": "newData.isString()"
+          },
+          "in_progress_state": {
+            ".validate": "newData.isString()"
+          },
+          "finished_state": {
+            ".validate": "newData.isString()"
+          },
+          "error_state": {
+            ".validate": "newData.isString()"
+          },
+          "timeout": {
+            ".validate": "newData.isNumber() && newData.val() > 0"
+          },
+          "retries": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "$other": {
+            ".validate": true
+          }
+        }
+      }
+    }
+  }
+}

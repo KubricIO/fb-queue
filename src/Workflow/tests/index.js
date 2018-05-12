@@ -62,10 +62,10 @@ const job = new Workflow({
 
 job.on('state_1', (data, progress, resolve, reject) => {
   setTimeout(() => {
-    logger.info({
-      message: `${data.title} state_1 resolved`,
-      time: new Date(),
-    });
+    // logger.info({
+    //   message: `${data.title} state_1 resolved`,
+    //   time: new Date(),
+    // });
     resolve({
       progress: 20,
     });
@@ -74,11 +74,11 @@ job.on('state_1', (data, progress, resolve, reject) => {
 
 job.on('state_2', (data, progress, resolve, reject) => {
   setTimeout(() => {
-    logger.info({
-      message: `${data.title} state_2 resolved`,
-      time: new Date(),
-    });
-    reject({
+    // logger.info({
+    //   message: `${data.title} state_2 resolved`,
+    //   time: new Date(),
+    // });
+    resolve({
       progress: 40,
     });
   }, 2000);
@@ -89,11 +89,11 @@ job.on('state_3', (data, progress, resolve, reject) => {
     resolve({
       progress: 60,
     });
-    logger.info({
-      message: `${data.title} state_3 resolved`,
-      time: new Date(),
-    });
-  }, 10000);
+    // logger.info({
+    //   message: `${data.title} state_3 resolved`,
+    //   time: new Date(),
+    // });
+  }, 2000);
 });
 
 job.on('state_4', (data, progress, resolve, reject) => {
@@ -101,42 +101,43 @@ job.on('state_4', (data, progress, resolve, reject) => {
     resolve({
       progress: 80,
     });
-    logger.info({
-      message: `${data.title} state_4 resolved`,
-      time: new Date(),
-    });
+    // logger.info({
+    //   message: `${data.title} state_4 resolved`,
+    //   time: new Date(),
+    // });
 
-  }, 15000);
+  }, 2000);
 });
 
 
 job.on('end', (data, progress, resolve, reject) => {
   setTimeout(() => {
-    logger.info({
-      message: `${data.title} end resolved`,
-      time: new Date(),
-    });
+    // logger.info({
+    //   message: `${data.title} end resolved`,
+    //   time: new Date(),
+    // });
     resolve({
       progress: 100,
     });
-  }, 5000);
+  }, 2000);
 });
 
 job.add({
   title: 'job1',
 });
 
-// job.add({
-//   title: 'job2',
-// });
-//
-// job.add({
-//   title: 'job3',
-// });
+job.add({
+  title: 'job2',
+});
+
+job.add({
+  title: 'job3',
+});
 //
 // job.add({
 //   title: 'job4',
 // });
+//
 // job.add({
 //   title: 'job11',
 // });

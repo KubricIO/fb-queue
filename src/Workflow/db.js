@@ -56,8 +56,26 @@ export default class QueueDB {
   }
 
   static getRefForState(state) {
-    return firebaseAdmin.database().ref(`${QueueDB.dbRoot}/tasks`)
+    return firebaseAdmin.database()
+      .ref(`${QueueDB.dbRoot}/tasks`)
       .orderByChild('_state')
       .equalTo(state);
+  }
+
+  static getStatsRef() {
+    return firebaseAdmin.database().ref(`${QueueDB.dbRoot}/stats/__stats__`);
+  }
+
+  static getStatsRefsFor(appName, jobType, wfStatus, indexValue) {
+    const statsPath = `${QueueDB.dbRoot}/stats`;
+    const statsRefs = [
+      firebaseAdmin.database().ref(`${statsPath}/__stats__`),
+      firebaseAdmin.database().ref(`${statsPath}/${appName}/__stats__`),
+      firebaseAdmin.database().ref(`${statsPath}/${appName}/${jobType}/__stats__`),
+    ];
+    if (typeof indexValue !== 'undefined') {
+      statsRefs.push(firebaseAdmin.database().ref(`${statsPath}/${appName}/${jobType}/${indexValue}/__stats__`));
+    }
+    return statsRefs;
   }
 }
