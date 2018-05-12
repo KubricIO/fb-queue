@@ -406,6 +406,40 @@ export default class Worker {
     };
   }
 
+  claimWfTaskToProcess(deferred, progress, resolve, reject) {
+    let retries = 0;
+
+    const claimWf = () => {
+      this.currentTaskRef.transaction(task => {
+        if (_.isNull(task)) {
+          return task;
+        }
+        task.__wfstatus__ = 10;
+        return task;
+      }, (error, committed, snapshot) => {
+        if (error) {
+          if (++retries < MAX_TRANSACTION_ATTEMPTS) {
+            logger.debug(this.getLogEntry('errored while attempting to claim a new WF task, retrying'), error);
+            return setImmediate(claimWf);
+          }
+          const errorMsg = 'errored while attempting to claim a new WF task too many times, no longer retrying';
+          logger.debug(this.getLogEntry(errorMsg), error);
+          return deferred.reject(new Error(errorMsg));
+        } else if (committed && snapshot.exists()) {
+          setImmediate(() => {
+            try {
+              this.processingFunction.call(null, snapshot.val(), progress, resolve, reject);
+            } catch (err) {
+              reject(err);
+            }
+          });
+        }
+      }, false);
+    };
+
+    claimWf();
+  }
+
   tryToProcess(deferred) {
     let retries = 0;
     let malformed = false;
@@ -461,9 +495,6 @@ export default class Worker {
               }
               if (task._state === this.startState) {
                 task._state = this.inProgressState;
-                if(this.isWorkflowTask) {
-                  task.__wfstatus__ = 10;
-                }
                 task._state_changed = SERVER_TIMESTAMP;
                 task._owner = this.getProcessId(this.taskNumber + 1);
                 task._progress = 0;
@@ -532,13 +563,17 @@ export default class Worker {
                     const progress = this.updateProgress(this.taskNumber);
                     const resolve = this.resolve(this.taskNumber);
                     const reject = this.reject(this.taskNumber);
-                    setImmediate(() => {
-                      try {
-                        this.processingFunction.call(null, data, progress, resolve, reject);
-                      } catch (err) {
-                        reject(err);
-                      }
-                    });
+                    if (!this.isWorkflowTask) {
+                      setImmediate(() => {
+                        try {
+                          this.processingFunction.call(null, data, progress, resolve, reject);
+                        } catch (err) {
+                          reject(err);
+                        }
+                      });
+                    } else {
+                      this.claimWfTaskToProcess(deferred, progress, resolve, reject);
+                    }
                   }
                 }
               }

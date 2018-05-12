@@ -6,10 +6,13 @@ Workflow.initialize({
   firebase: conf,
 });
 
-const job = new Workflow({
-  app: 'server-utils',
-  type: 'TestJob',
+const config = {
   numWorkers: 1,
+  eventHandlers: {
+    status(wfStatus) {
+      logger.info(wfStatus);
+    }
+  },
   inputData({ title }) {
     return [{
       name: "Job title",
@@ -58,143 +61,158 @@ const job = new Workflow({
       }];
     }
   }],
+};
+
+const setupQueue = job => {
+  job.on('state_1', (data, progress, resolve, reject) => {
+    setTimeout(() => {
+      resolve({
+        progress: 20,
+      });
+    }, 2000);
+  });
+
+  job.on('state_2', (data, progress, resolve, reject) => {
+    setTimeout(() => {
+      resolve({
+        progress: 40,
+      });
+    }, 2000);
+  });
+
+  job.on('state_3', (data, progress, resolve, reject) => {
+    setTimeout(() => {
+      resolve({
+        progress: 60,
+      });
+    }, 2000);
+  });
+
+  job.on('state_4', (data, progress, resolve, reject) => {
+    setTimeout(() => {
+      resolve({
+        progress: 80,
+      });
+    }, 2000);
+  });
+
+
+  job.on('end', (data, progress, resolve, reject) => {
+    setTimeout(() => {
+      resolve({
+        progress: 100,
+      });
+    }, 2000);
+  });
+
+  job.add({
+    title: 'job1',
+  });
+
+  job.add({
+    title: 'job2',
+  });
+
+  job.add({
+    title: 'job3',
+  });
+
+  job.add({
+    title: 'job4',
+  });
+
+  job.add({
+    title: 'job11',
+  });
+
+  job.add({
+    title: 'job12',
+  });
+
+  job.add({
+    title: 'job13',
+  });
+
+  job.add({
+    title: 'job14',
+  });
+  job.add({
+    title: 'job21',
+  });
+
+  job.add({
+    title: 'job22',
+  });
+
+  job.add({
+    title: 'job23',
+  });
+
+  job.add({
+    title: 'job24',
+  });
+  job.add({
+    title: 'job31',
+  });
+
+  job.add({
+    title: 'job32',
+  });
+
+  job.add({
+    title: 'job33',
+  });
+
+  job.add({
+    title: 'job34',
+  });
+  job.add({
+    title: 'job41',
+  });
+
+  job.add({
+    title: 'job42',
+  }, {
+    indexId: 'abc',
+  });
+
+  job.add({
+    title: 'job43',
+  }, {
+    indexId: 'abc',
+  });
+
+  job.add({
+    title: 'job44',
+  }, {
+    indexId: 'abc',
+  });
+};
+
+const job1 = new Workflow({
+  ...config,
+  app: 'server-utils1',
+  type: 'TestJob1',
 });
+setupQueue(job1);
 
-job.on('state_1', (data, progress, resolve, reject) => {
-  setTimeout(() => {
-    // logger.info({
-    //   message: `${data.title} state_1 resolved`,
-    //   time: new Date(),
-    // });
-    resolve({
-      progress: 20,
-    });
-  }, 2000);
+const job2 = new Workflow({
+  ...config,
+  app: 'server-utils1',
+  type: `TestJob2`
 });
+setupQueue(job2);
 
-job.on('state_2', (data, progress, resolve, reject) => {
-  setTimeout(() => {
-    // logger.info({
-    //   message: `${data.title} state_2 resolved`,
-    //   time: new Date(),
-    // });
-    resolve({
-      progress: 40,
-    });
-  }, 2000);
+const job3 = new Workflow({
+  ...config,
+  app: 'server-utils2',
+  type: 'TestJob2',
 });
+setupQueue(job3);
 
-job.on('state_3', (data, progress, resolve, reject) => {
-  setTimeout(() => {
-    resolve({
-      progress: 60,
-    });
-    // logger.info({
-    //   message: `${data.title} state_3 resolved`,
-    //   time: new Date(),
-    // });
-  }, 2000);
+const job4 = new Workflow({
+  ...config,
+  app: 'server-utils2',
+  type: 'TestJob3',
 });
-
-job.on('state_4', (data, progress, resolve, reject) => {
-  setTimeout(() => {
-    resolve({
-      progress: 80,
-    });
-    // logger.info({
-    //   message: `${data.title} state_4 resolved`,
-    //   time: new Date(),
-    // });
-
-  }, 2000);
-});
-
-
-job.on('end', (data, progress, resolve, reject) => {
-  setTimeout(() => {
-    // logger.info({
-    //   message: `${data.title} end resolved`,
-    //   time: new Date(),
-    // });
-    resolve({
-      progress: 100,
-    });
-  }, 2000);
-});
-
-job.add({
-  title: 'job1',
-});
-
-job.add({
-  title: 'job2',
-});
-
-job.add({
-  title: 'job3',
-});
-//
-// job.add({
-//   title: 'job4',
-// });
-//
-// job.add({
-//   title: 'job11',
-// });
-//
-// job.add({
-//   title: 'job12',
-// });
-//
-// job.add({
-//   title: 'job13',
-// });
-//
-// job.add({
-//   title: 'job14',
-// });
-// job.add({
-//   title: 'job21',
-// });
-//
-// job.add({
-//   title: 'job22',
-// });
-//
-// job.add({
-//   title: 'job23',
-// });
-//
-// job.add({
-//   title: 'job24',
-// });
-// job.add({
-//   title: 'job31',
-// });
-//
-// job.add({
-//   title: 'job32',
-// });
-//
-// job.add({
-//   title: 'job33',
-// });
-//
-// job.add({
-//   title: 'job34',
-// });
-// job.add({
-//   title: 'job41',
-// });
-//
-// job.add({
-//   title: 'job42',
-// });
-//
-// job.add({
-//   title: 'job43',
-// });
-//
-// job.add({
-//   title: 'job44',
-// });
+setupQueue(job4);
