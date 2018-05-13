@@ -39,6 +39,7 @@ export default (apps = [], QueueDB, wares = []) => {
 
     const snapshots = await QueueDB.getAllTasksRef(userKey)
       .orderByChild('user')
+      .limitToFirst(50)
       .once('value');
 
     let promises = [];
@@ -56,7 +57,7 @@ export default (apps = [], QueueDB, wares = []) => {
           }));
       }
     });
-    results = Promise.all(promises);
+    const results = await Promise.all(promises);
     res.status(200).send(results);
   }]);
 

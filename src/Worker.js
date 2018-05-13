@@ -2,6 +2,8 @@ import logger from 'winston';
 import uuid from 'uuid';
 import _ from 'lodash';
 import RSVP from 'rsvp';
+import { getIndexKey } from "./Workflow/utils";
+import { WFSTATUS_INDEX_KEYNAME } from "./Workflow/constants";
 
 const MAX_TRANSACTION_ATTEMPTS = 10;
 const DEFAULT_ERROR_STATE = 'error';
@@ -85,10 +87,10 @@ export default class Worker {
     return `QueueWorker ${this.workerId} ${message}`;
   };
 
-  updateWfStatus(task, status) {
+  static updateWfStatus(task, status) {
     task.__wfstatus__ = status;
     if (!_.isUndefined(task.__index__)) {
-      task.__index_wfstatus__ = `${task.__index__}:${task.__wfstatus__}`;
+      task[WFSTATUS_INDEX_KEYNAME] = getIndexKey(task.user, status, task.__index__);
     }
     return task;
   }
@@ -123,7 +125,7 @@ export default class Worker {
       if (correctState && correctOwner && timedOut) {
         task._state = this.startState;
         if (this.isWorkflowTask && this.isFirstTask) {
-          task = this.updateWfStatus(task, 0);
+          task = Worker.updateWfStatus(task, 0);
         }
         task._state_changed = SERVER_TIMESTAMP;
         task._owner = null;
@@ -209,7 +211,7 @@ export default class Worker {
             outputTask._progress = 100;
             outputTask._error_details = null;
             if (this.isWorkflowTask && this.isLastTask) {
-              outputTask = this.updateWfStatus(outputTask, 1);
+              outputTask = Worker.updateWfStatus(outputTask, 10);
             }
             return outputTask;
           }
@@ -308,12 +310,12 @@ export default class Worker {
             if (attempts >= this.taskRetries) {
               task._state = this.errorState;
               if (this.isWorkflowTask) {
-                task = this.updateWfStatus(task, -1);
+                task = Worker.updateWfStatus(task, -1);
               }
             } else {
               task._state = this.startState;
               if (this.isWorkflowTask && this.isFirstTask) {
-                task = this.updateWfStatus(task, 0);
+                task = Worker.updateWfStatus(task, 0);
               }
             }
             task._state_changed = SERVER_TIMESTAMP;
@@ -422,7 +424,7 @@ export default class Worker {
         if (_.isNull(task)) {
           return task;
         }
-        task = this.updateWfStatus(task, 10);
+        task = Worker.updateWfStatus(task, 1);
         return task;
       }, (error, committed, snapshot) => {
         if (error) {

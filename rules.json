@@ -7,6 +7,7 @@
         "$user": {
           ".read": "auth.canProcessTasks === true",
           ".write": "auth.canAddTasks === true || auth.canProcessTasks === true",
+          ".indexOn": ["user","__type__", "__app__", "__index__","__app_jobtype__"],
         }
       },
       "apps": {

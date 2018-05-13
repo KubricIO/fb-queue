@@ -5,4 +5,6 @@ export const validateFirebaseKey = (key = '') => key.replace(INVALID_KEY_REGEX, 
 
 export const getAppTypeKey = (app, type) => `${app}:${type}`;
 
-export const getIndexKey = (indexId, indexField) => `${!_.isUndefined(indexField) ? `${indexField}:` : ''}${indexId || ''}`;
+export const getIndexPrefix = (indexId, indexField) => `${!_.isUndefined(indexField) ? `${indexField}:` : ''}${indexId || ''}`;
+
+export const getIndexKey = (user, wfStatus, indexId, indexField) => `${validateFirebaseKey(user)}:${getIndexPrefix(indexId, indexField)}:${wfStatus}`;

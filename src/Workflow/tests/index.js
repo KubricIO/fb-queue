@@ -1,12 +1,14 @@
 import conf from '../../../key';
 import { Workflow } from "../../index";
 import logger from 'winston';
+import _ from 'lodash';
 
 const config = {
   numWorkers: 1,
   eventHandlers: {
-    status(wfStatus) {
+    status(wfStatus, jobData) {
       logger.info(wfStatus);
+      logger.info(jobData);
     }
   },
   inputData({ title }) {
@@ -213,9 +215,23 @@ const addJobs = (job, user) => {
   });
 };
 
-Workflow.initialize({
+const QueueDB = Workflow.initialize({
   firebase: conf,
 });
+
+// QueueDB.getSpecsRef('server-utils1', 'TestJob2')
+//   .orderByChild('status')
+//   .startAt(`abc:-1`)
+//   .endAt(`abc:1`)
+//   .limitToFirst(1)
+//   .on('value', snapshot => {
+//     const val = snapshot.val();
+//     if (_.isNull(val)) {
+//       logger.info('done');
+//     } else {
+//       logger.info(val);
+//     }
+//   });
 const job1 = new Workflow({
   ...config,
   app: 'server-utils1',
@@ -223,27 +239,27 @@ const job1 = new Workflow({
 });
 setupQueue(job1);
 addJobs(job1);
-
-const job2 = new Workflow({
-  ...config,
-  app: 'server-utils1',
-  type: `TestJob2`
-});
-setupQueue(job2);
-addJobs(job2, "jophin2u@gmail.com");
-
-const job3 = new Workflow({
-  ...config,
-  app: 'server-utils2',
-  type: 'TestJob2',
-});
-setupQueue(job3);
-addJobs(job3, "jophin3u@gmail.com");
-
-const job4 = new Workflow({
-  ...config,
-  app: 'server-utils2',
-  type: 'TestJob3',
-});
-setupQueue(job4);
-addJobs(job4, "jophin4u@gmail.com");
+//
+// const job2 = new Workflow({
+//   ...config,
+//   app: 'server-utils1',
+//   type: `TestJob2`
+// });
+// setupQueue(job2);
+// addJobs(job2, "jophin2u@gmail.com");
+//
+// const job3 = new Workflow({
+//   ...config,
+//   app: 'server-utils2',
+//   type: 'TestJob2',
+// });
+// setupQueue(job3);
+// addJobs(job3, "jophin3u@gmail.com");
+//
+// const job4 = new Workflow({
+//   ...config,
+//   app: 'server-utils2',
+//   type: 'TestJob3',
+// });
+// setupQueue(job4);
+// addJobs(job4, "jophin4u@gmail.com");

@@ -4,7 +4,7 @@ import getRoutes from './routes';
 import Task from "./task";
 import logger from 'winston';
 import _ from 'lodash';
-import { getAppTypeKey, getIndexKey, validateFirebaseKey } from "./utils";
+import { getAppTypeKey, getIndexKey, getIndexPrefix, validateFirebaseKey } from "./utils";
 import { WFSTATUS_INDEX_KEYNAME, APP_JOBTYPE_KEYNAME } from "./constants";
 
 export default class Job {
@@ -42,6 +42,7 @@ export default class Job {
     try {
       QueueDB.initialize(firebase);
       Job.initialized = true
+      return QueueDB;
     } catch (ex) {
       throw ex;
     }
@@ -112,11 +113,24 @@ export default class Job {
   static setupStatusListener(taskRef, handler) {
     const listener = taskRef.child('__wfstatus__').on('value', wfSnap => {
       const wfStatus = wfSnap.val();
-      setImmediate(handler, wfStatus);
-      if (wfStatus === -1 || wfStatus === 1) {
+      taskRef.once('value')
+        .then(jobSnap => setImmediate(handler, wfStatus, jobSnap.val()));
+      if (wfStatus === -1 || wfStatus === 10) {
         taskRef.child('__wfstatus__').off('value', listener);
       }
     });
+  }
+
+  getFilteredTasks({ user, indexField, indexId, wfStatus }) {
+    const ref = QueueDB.getTasksRef(this.app, this.type)
+      .orderByChild(WFSTATUS_INDEX_KEYNAME);
+    if (typeof wfStatus === 'number') {
+      return ref.equalTo(getIndexKey(user, wfStatus, indexId, indexField));
+    } else {
+      const { from, to } = wfStatus;
+      return ref.startAt(getIndexKey(user, from, indexId, indexField))
+        .endAt(getIndexKey(user, to, indexId, indexField));
+    }
   }
 
   add(jobData, { indexField, indexId, eventHandlers = {} } = {}) {
@@ -126,6 +140,7 @@ export default class Job {
     const taskData = {
       ...jobData,
       user,
+      userid: jobData.user,
       __type__: this.type,
       __app__: this.app,
       __display__: this.getInputData(jobData),
@@ -133,9 +148,8 @@ export default class Job {
       __wfstatus__: wfStatus,
     };
     if (!_.isUndefined(indexId) || !_.isUndefined(indexField)) {
-      const prefix = getIndexKey(indexId, indexField);
-      taskData.__index__ = prefix;
-      taskData[WFSTATUS_INDEX_KEYNAME] = `${prefix}:${wfStatus}`;
+      taskData.__index__ = getIndexPrefix(indexId, indexField);
+      taskData[WFSTATUS_INDEX_KEYNAME] = getIndexKey(user, wfStatus, indexId, indexField);
     }
     const taskRef = QueueDB.getTasksRef(this.app, this.type).push(taskData);
     delete taskData._state;
