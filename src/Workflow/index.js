@@ -1,7 +1,7 @@
 import Queue from '../Queue';
-import QueueDB from './db';
+import QueueDB from './QueueDB';
 import getRoutes from './routes';
-import Task from "./task";
+import Task from "./Task";
 import logger from 'winston';
 import _ from 'lodash';
 import { getAppTypeKey, getIndexKey, getIndexPrefix, validateFirebaseKey } from "./utils";
@@ -41,7 +41,7 @@ export default class Job {
   static initialize({ firebase }) {
     try {
       QueueDB.initialize(firebase);
-      Job.initialized = true
+      Job.initialized = true;
       return QueueDB;
     } catch (ex) {
       throw ex;
@@ -136,11 +136,12 @@ export default class Job {
   add(jobData, { indexField, indexId, eventHandlers = {} } = {}) {
     const statusChangeHandler = this.eventHandlers['status'] || eventHandlers['status'];
     const wfStatus = 0;
-    const user = validateFirebaseKey(jobData.user || 'anonymous_user');
+    const userid = jobData.user || 'anonymous_user';
+    const user = validateFirebaseKey(userid);
     const taskData = {
       ...jobData,
       user,
-      userid: jobData.user,
+      userid,
       __type__: this.type,
       __app__: this.app,
       __display__: this.getInputData(jobData),

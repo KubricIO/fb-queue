@@ -170,7 +170,7 @@ export default class Worker {
      * @param {Object} newTask The new data to be stored at the location.
      * @returns {RSVP.Promise} Whether the task was able to be resolved.
      */
-    const _resolve = newTask => {
+    const _resolve = (newTask, isPatch) => {
       if ((taskNumber !== this.taskNumber) || _.isNull(this.currentTaskRef)) {
         if (_.isNull(this.currentTaskRef)) {
           logger.debug(this.getLogEntry('Can\'t resolve task - no task ' +
@@ -193,6 +193,12 @@ export default class Worker {
           let id = this.getProcessId();
           if (task._state === this.inProgressState && task._owner === id) {
             let outputTask = _.clone(newTask);
+            if (isPatch) {
+              outputTask = {
+                ...task,
+                ...outputTask
+              };
+            }
             if (!_.isPlainObject(outputTask)) {
               outputTask = {};
             }
@@ -375,7 +381,7 @@ export default class Worker {
      * @param {Number} progress The progress to report.
      * @returns {RSVP.Promise} Whether the progress was updated.
      */
-    return progress => {
+    return (progress, progressStats = {}) => {
       if (!_.isNumber(progress) || _.isNaN(progress) || progress < 0 || progress > 100) {
         return RSVP.reject(new Error('Invalid progress'));
       }
@@ -391,9 +397,14 @@ export default class Worker {
             return task;
           }
           const id = this.getProcessId();
-          if (task._state === this.inProgressState &&
-            task._owner === id) {
+          if (task._state === this.inProgressState && task._owner === id) {
             task._progress = progress;
+            if (!_.isNull(progressStats) && _.isPlainObject(progressStats)) {
+              task._progressStats = {
+                ...(task._progressStats || {}),
+                ...progressStats,
+              };
+            }
             return task;
           }
           return undefined;

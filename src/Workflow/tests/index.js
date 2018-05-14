@@ -63,6 +63,9 @@ const config = {
 
 const setupQueue = job => {
   job.on('state_1', (data, progress, resolve, reject) => {
+    progress(20, {
+      state_1: 'inprogress'
+    });
     setTimeout(() => {
       resolve({
         progress: 20,
@@ -71,6 +74,9 @@ const setupQueue = job => {
   });
 
   job.on('state_2', (data, progress, resolve, reject) => {
+    progress(40, {
+      state_2: 'inprogress'
+    });
     setTimeout(() => {
       resolve({
         progress: 40,
@@ -79,6 +85,7 @@ const setupQueue = job => {
   });
 
   job.on('state_3', (data, progress, resolve, reject) => {
+    progress(60);
     setTimeout(() => {
       resolve({
         progress: 60,
@@ -96,6 +103,9 @@ const setupQueue = job => {
 
 
   job.on('end', (data, progress, resolve, reject) => {
+    progress(100, {
+      end: 'inprogress'
+    });
     setTimeout(() => {
       resolve({
         progress: 100,
@@ -113,106 +123,106 @@ const addJobs = (job, user) => {
     indexId: "test",
   });
 
-  job.add({
-    title: 'job2',
-    user,
-  });
-
-  job.add({
-    title: 'job3',
-    user,
-  });
-
-  job.add({
-    title: 'job4',
-    user,
-  });
-
-  job.add({
-    title: 'job11',
-    user,
-  });
-
-  job.add({
-    title: 'job12',
-    user,
-  });
-
-  job.add({
-    title: 'job13',
-    user,
-  });
-
-  job.add({
-    title: 'job14',
-    user,
-  });
-  job.add({
-    title: 'job21',
-    user,
-  });
-
-  job.add({
-    title: 'job22',
-    user,
-  });
-
-  job.add({
-    title: 'job23',
-    user,
-  });
-
-  job.add({
-    title: 'job24',
-    user,
-  });
-  job.add({
-    title: 'job31',
-    user,
-  });
-
-  job.add({
-    title: 'job32',
-    user,
-  });
-
-  job.add({
-    title: 'job33',
-    user,
-  });
-
-  job.add({
-    title: 'job34',
-    user,
-  });
-  job.add({
-    title: 'job41',
-    user,
-  });
-
-  job.add({
-    title: 'job42',
-    user,
-  }, {
-    indexField: 'campaign',
-    indexId: 'abc',
-  });
-
-  job.add({
-    title: 'job43',
-    user,
-  }, {
-    indexField: 'campaign',
-    indexId: 'abc',
-  });
-
-  job.add({
-    title: 'job44',
-    user,
-  }, {
-    indexField: 'campaign',
-    indexId: 'abc',
-  });
+  // job.add({
+  //   title: 'job2',
+  //   user,
+  // });
+  //
+  // job.add({
+  //   title: 'job3',
+  //   user,
+  // });
+  //
+  // job.add({
+  //   title: 'job4',
+  //   user,
+  // });
+  //
+  // job.add({
+  //   title: 'job11',
+  //   user,
+  // });
+  //
+  // job.add({
+  //   title: 'job12',
+  //   user,
+  // });
+  //
+  // job.add({
+  //   title: 'job13',
+  //   user,
+  // });
+  //
+  // job.add({
+  //   title: 'job14',
+  //   user,
+  // });
+  // job.add({
+  //   title: 'job21',
+  //   user,
+  // });
+  //
+  // job.add({
+  //   title: 'job22',
+  //   user,
+  // });
+  //
+  // job.add({
+  //   title: 'job23',
+  //   user,
+  // });
+  //
+  // job.add({
+  //   title: 'job24',
+  //   user,
+  // });
+  // job.add({
+  //   title: 'job31',
+  //   user,
+  // });
+  //
+  // job.add({
+  //   title: 'job32',
+  //   user,
+  // });
+  //
+  // job.add({
+  //   title: 'job33',
+  //   user,
+  // });
+  //
+  // job.add({
+  //   title: 'job34',
+  //   user,
+  // });
+  // job.add({
+  //   title: 'job41',
+  //   user,
+  // });
+  //
+  // job.add({
+  //   title: 'job42',
+  //   user,
+  // }, {
+  //   indexField: 'campaign',
+  //   indexId: 'abc',
+  // });
+  //
+  // job.add({
+  //   title: 'job43',
+  //   user,
+  // }, {
+  //   indexField: 'campaign',
+  //   indexId: 'abc',
+  // });
+  //
+  // job.add({
+  //   title: 'job44',
+  //   user,
+  // }, {
+  //   indexField: 'campaign',
+  //   indexId: 'abc',
+  // });
 };
 
 const QueueDB = Workflow.initialize({

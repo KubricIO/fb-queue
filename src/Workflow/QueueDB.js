@@ -54,12 +54,4 @@ export default class QueueDB {
   static getAllTasksRefFor(user, key) {
     return firebaseAdmin.database().ref(`${QueueDB.dbRoot}/alltasks/${user}/${key}`);
   }
-
-
-  // static getRefForState(state) {
-  //   return firebaseAdmin.database()
-  //     .ref(`${QueueDB.dbRoot}/tasks`)
-  //     .orderByChild('_state')
-  //     .equalTo(state);
-  // }
 }

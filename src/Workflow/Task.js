@@ -1,4 +1,4 @@
-import QueueDB from "./db";
+import QueueDB from "./QueueDB";
 import logger from 'winston';
 
 const patchData = (data, patch = {}) => {
@@ -16,25 +16,25 @@ const patchData = (data, patch = {}) => {
 };
 
 const resolvedTaskHandler = async (task, jobData, resolve, taskResults) => {
-  const outputData = task.getOutputData(jobData, taskResults);
+  const outputData = task.getOutputData(jobData, taskResults = {});
+  let jobDataPatch = {
+    ...taskResults,
+  };
   if (typeof outputData !== 'undefined') {
-    jobData = {
-      ...jobData,
+    jobDataPatch = {
+      ...jobDataPatch,
       __display__: {
         ...jobData.__display__,
         output: patchData(jobData.__display__.output, outputData),
       },
     };
   }
-  resolve({
-    ...jobData,
-    ...taskResults,
-  });
+  return resolve(jobDataPatch, true);
 };
 
 const taskHandler = async (task, handler, jobData, progress, resolve, reject) => {
   try {
-    handler(jobData, progress, resolvedTaskHandler.bind(null, task, jobData, resolve), async err => {
+    return handler(jobData, progress, resolvedTaskHandler.bind(null, task, jobData, resolve), async err => {
       reject(err);
     });
   } catch (ex) {

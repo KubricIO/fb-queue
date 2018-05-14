@@ -19,12 +19,18 @@ const releaseRoot = 'release';
 
 const serverFiles = {
   src: {
-    files: ['src/**/*.js', '!src/Workflow/tests/index.js', '!src/Workflow/tests/stats.js', '!src/index.js'],
+    files: ['src/**/*.js', '!src/Workflow/tests/index.js', '!src/Workflow/tests/stats.js', '!src/Workflow/index.js', '!src/Queue.js'],
     to: `${buildRoot}`
   },
   index: {
-    root: 'src',
+    root: 'src/Workflow',
     fileName: 'index.js',
+    addPolyfill: true,
+    to: `${buildRoot}/Workflow`,
+  },
+  queue: {
+    root: 'src',
+    fileName: 'Queue.js',
     addPolyfill: true,
     to: `${buildRoot}`,
   },
