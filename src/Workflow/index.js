@@ -133,6 +133,12 @@ export default class Job {
     }
   }
 
+  getJobData(taskKey) {
+    return QueueDB.getTaskRef(this.app, this.type, taskKey)
+      .once('value')
+      .then(taskSnap => taskSnap.val());
+  }
+
   add(jobData, { indexField, indexId, eventHandlers = {} } = {}) {
     const statusChangeHandler = this.eventHandlers['status'] || eventHandlers['status'];
     const wfStatus = 0;
@@ -157,7 +163,7 @@ export default class Job {
     delete taskData.__wfstatus__;
     delete taskData[WFSTATUS_INDEX_KEYNAME];
     delete taskData.user;
-    QueueDB.getAllTasksRef(user).push({
+    const allTasksRef = QueueDB.getAllTasksRef(user).push({
       ...taskData,
       [APP_JOBTYPE_KEYNAME]: getAppTypeKey(this.app, this.type),
       __ref__: taskRef.key,
@@ -165,6 +171,11 @@ export default class Job {
     if (statusChangeHandler) {
       Job.setupStatusListener(taskRef, statusChangeHandler);
     }
-    return taskRef;
+    return taskRef
+      .then(() => ({
+        id: taskRef.key,
+        key: allTasksRef.key,
+        ref: taskRef,
+      }));
   }
 }
