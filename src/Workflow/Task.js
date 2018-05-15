@@ -16,7 +16,7 @@ const patchData = (data, patch = {}) => {
 };
 
 const resolvedTaskHandler = async (task, jobData, resolve, taskResults) => {
-  const outputData = task.getOutputData(jobData, taskResults = {});
+  const outputData = task.getOutputData(jobData, taskResults);
   let jobDataPatch = {
     ...taskResults,
   };
