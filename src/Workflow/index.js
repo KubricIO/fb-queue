@@ -7,11 +7,15 @@ import _ from 'lodash';
 import { getAppTypeKey, getIndexKey, getIndexPrefix, validateFirebaseKey } from "./utils";
 import { WFSTATUS_INDEX_KEYNAME, APP_JOBTYPE_KEYNAME } from "./constants";
 
-export default class Job {
+export default class WorkFlow {
   static initialized = false;
   static appQueues = {};
 
-  constructor({ app, type = '', tasks = [], timeout, retries, numWorkers = 1, inputData, eventHandlers = {} }) {
+  constructor(options) {
+    let { app, type = '', tasks = [], inputData, eventHandlers = {}, timeout, retries, numWorkers } = options;
+    if (!WorkFlow.initialized) {
+      throw new Error('Initialize class before creating new instances')
+    }
     if (typeof app !== 'string' || app.length === 0) {
       throw new Error('Please provide a valid app');
     }
@@ -28,39 +32,32 @@ export default class Job {
     }
     this.type = type;
     this.app = app;
+    this.inputData = inputData;
+    this.eventHandlers = eventHandlers;
     this.tasks = Task.createTasks(this.app, this.type, tasks, {
       timeout,
       retries,
       numWorkers,
     });
     this.startTask = this.tasks[tasks[0].id];
-    this.inputData = inputData;
-    this.eventHandlers = eventHandlers;
+    const initHandler = eventHandlers.init;
+    if (typeof initHandler === 'function') {
+      setImmediate(initHandler, QueueDB.getTasksRef(app, type));
+    }
   }
 
   static initialize({ firebase }) {
     try {
       QueueDB.initialize(firebase);
-      Job.initialized = true;
+      WorkFlow.initialized = true;
       return QueueDB;
     } catch (ex) {
       throw ex;
     }
   }
 
-  static getTaskCount(state) {
-    if (!Job.initialized) {
-      throw new Error('Not initialized. Call static function `initialize` with firebase config.');
-    } else {
-      return new Promise(resolve => {
-        QueueDB.getRefForState(state)
-          .once('value', snapshot => resolve(snapshot.numChildren()));
-      });
-    }
-  }
-
   static getJobRoutes(apps, wares) {
-    if (!Job.initialized) {
+    if (!WorkFlow.initialized) {
       throw new Error('Not initialized. Call static function `initialize` with firebase config.');
     }
     return getRoutes(apps, QueueDB, wares);
@@ -70,14 +67,14 @@ export default class Job {
     if (!app) {
       throw new Error("Missing 'app' parameter");
     }
-    const appQueues = Job.appQueues[app] || [];
+    const appQueues = WorkFlow.appQueues[app] || [];
     if (appQueues.length > 0) {
       const promises = appQueues.map(queue => queue.shutdown());
       Promise.all(promises)
-        .then(res => logger.debug(`${appQueues.length} queues shut down for app ${app}`))
+        .then(res => logger.info(`${appQueues.length} queues shut down for app ${app}`))
         .catch(err => logger.error(err));
     } else {
-      logger.debug('No queues to shut down');
+      logger.info('No queues to shut down');
     }
   }
 
@@ -86,7 +83,7 @@ export default class Job {
     if (!task) {
       throw new Error(`'${taskName}' is not a registered task for this job.`);
     }
-    let appQueues = Job.appQueues[this.app];
+    let appQueues = WorkFlow.appQueues[this.app];
     if (!appQueues) {
       appQueues = [];
     }
@@ -97,7 +94,7 @@ export default class Job {
       specId: task.getId(),
       numWorkers: task.getWorkerCount(),
     }, task.getHandler(handler)));
-    Job.appQueues[this.app] = appQueues;
+    WorkFlow.appQueues[this.app] = appQueues;
   }
 
   getInputData(jobData) {
@@ -169,7 +166,7 @@ export default class Job {
       __ref__: taskRef.key,
     });
     if (statusChangeHandler) {
-      Job.setupStatusListener(taskRef, statusChangeHandler);
+      WorkFlow.setupStatusListener(taskRef, statusChangeHandler);
     }
     return taskRef
       .then(() => ({

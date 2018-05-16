@@ -67,6 +67,7 @@
   "scripts": {
     "test": "gulp test",
     "build": "gulp",
+    "link": "npm run build && npm link",
     "wftests": "node build/Workflow/tests/index.js",
     "wfstats": "node build/Workflow/tests/stats.js",
     "publish": "yarn version --no-git-tag-version && gulp publish && npm publish ./release"
