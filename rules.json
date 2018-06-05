@@ -2,28 +2,30 @@
   "rules": {
     "queue": {
       "alltasks": {
-        ".read": "auth.canProcessTasks === true",
-        ".write": "auth.canAddTasks === true || auth.canProcessTasks === true",
+        ".read": "auth.uid === 'kubric-fbqueue-admin'",
+        ".write": "auth.uid === 'kubric-fbqueue-admin'",
         "$user": {
-          ".read": "auth.canProcessTasks === true",
-          ".write": "auth.canAddTasks === true || auth.canProcessTasks === true",
+          ".read": "auth.uid === 'kubric-fbqueue-admin' || auth.uid === $user",
+          ".write": "auth.uid === 'kubric-fbqueue-admin'",
           ".indexOn": ["user","__type__", "__app__", "__index__","__app_jobtype__"],
         }
       },
       "apps": {
-        ".read": "auth.canProcessTasks === true",
-        ".write": "auth.canAddTasks === true || auth.canProcessTasks === true",
+        ".read": "auth.uid === 'kubric-fbqueue-admin'",
+        ".write": "auth.uid === 'kubric-fbqueue-admin'",
         "$app": {
-          ".read": "auth.canProcessTasks === true",
-          ".write": "auth.canAddTasks === true || auth.canProcessTasks === true",
+          ".read": "auth.uid === 'kubric-fbqueue-admin'",
+          ".write": "auth.uid === 'kubric-fbqueue-admin'",
           "$jobtype": {
-            ".read": "auth.canProcessTasks === true",
-            ".write": "auth.canAddTasks === true || auth.canProcessTasks === true",
+            ".read": "auth.uid === 'kubric-fbqueue-admin'",
+            ".write": "auth.uid === 'kubric-fbqueue-admin'",
             "specs": {
-              ".read": "auth.canProcessTasks === true",
-              ".write": "auth.canAddTasks === true || auth.canProcessTasks === true",
+              ".read": "auth.uid === 'kubric-fbqueue-admin'",
+              ".write": "auth.uid === 'kubric-fbqueue-admin'",
               ".indexOn": ["error_state"],
               "$specId": {
+                ".read": "auth.uid === 'kubric-fbqueue-admin'",
+                ".write": "auth.uid === 'kubric-fbqueue-admin'",
                 ".validate": "newData.hasChild('in_progress_state')",
                 "start_state": {
                   ".validate": "newData.isString()"
@@ -49,10 +51,12 @@
               }
             },
             "tasks": {
-              ".read": "auth.canProcessTasks === true",
-              ".write": "auth.canAddTasks === true || auth.canProcessTasks === true",
+              ".read": "auth.uid === 'kubric-fbqueue-admin'",
+              ".write": "auth.uid === 'kubric-fbqueue-admin'",
               ".indexOn": ["user", "_state", "__type__", "__app__", "__wfstatus__", "__index__", "__index_wfstatus__"],
               "$taskId": {
+                ".read": "auth.uid === 'kubric-fbqueue-admin' || data.child('user').val() === auth.uid",
+                ".write": "auth.uid === 'kubric-fbqueue-admin'",
                 ".validate": "newData.hasChildren(['__type__']) || (auth.canProcessTasks === true && newData.hasChildren(['_state', '_state_changed', '_progress']))",
                 "_state": {
                   ".validate": "newData.isString()"

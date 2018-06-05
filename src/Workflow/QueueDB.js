@@ -20,9 +20,7 @@ export default class QueueDB {
       credential: firebaseAdmin.credential.cert(serviceAccount),
       databaseURL: config.databaseURL,
       databaseAuthVariableOverride: {
-        canAddTasks: true,
-        canProcessTasks: true,
-        canAddSpecs: true,
+        uid: 'kubric-fbqueue-admin',
       },
     });
   }
