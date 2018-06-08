@@ -6,6 +6,7 @@ import logger from 'winston';
 import _ from 'lodash';
 import { getAppTypeKey, getIndexKey, getIndexPrefix, validateFirebaseKey } from "./utils";
 import { WFSTATUS_INDEX_KEYNAME, APP_JOBTYPE_KEYNAME } from "./constants";
+import firebaseAdmin from 'firebase-admin';
 
 export default class WorkFlow {
   static initialized = false;
@@ -48,7 +49,10 @@ export default class WorkFlow {
 
   static initialize({ firebase }) {
     try {
-      QueueDB.initialize(firebase);
+      QueueDB.initialize({
+        ...firebase,
+        firebaseInstance: firebaseAdmin,
+      });
       WorkFlow.initialized = true;
       return QueueDB;
     } catch (ex) {
@@ -118,16 +122,12 @@ export default class WorkFlow {
     });
   }
 
-  getFilteredTasks({ user, indexField, indexId, wfStatus }) {
-    const ref = QueueDB.getTasksRef(this.app, this.type)
-      .orderByChild(WFSTATUS_INDEX_KEYNAME);
-    if (typeof wfStatus === 'number') {
-      return ref.equalTo(getIndexKey(user, wfStatus, indexId, indexField));
-    } else {
-      const { from, to } = wfStatus;
-      return ref.startAt(getIndexKey(user, from, indexId, indexField))
-        .endAt(getIndexKey(user, to, indexId, indexField));
-    }
+  getFilteredTasks(query) {
+    return QueueDB.getFilteredTasksRef({
+      app: this.app,
+      jobType: this.type,
+      ...query,
+    });
   }
 
   getJobData(taskKey) {

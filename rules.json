@@ -51,7 +51,7 @@
               }
             },
             "tasks": {
-              ".read": "auth.uid === 'kubric-fbqueue-admin'",
+              ".read": "auth.uid === 'kubric-fbqueue-admin' || true",
               ".write": "auth.uid === 'kubric-fbqueue-admin'",
               ".indexOn": ["user", "_state", "__type__", "__app__", "__wfstatus__", "__index__", "__index_wfstatus__"],
               "$taskId": {

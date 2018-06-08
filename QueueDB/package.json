@@ -1,0 +1,5 @@
+{
+  "name": "@kubric/firebase-queue/QueueDB",
+  "private": true,
+  "main": "../build/Workflow/QueueDB.js"
+}

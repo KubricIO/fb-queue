@@ -1,0 +1,5 @@
+{
+  "name": "@kubric/firebase-queue/utils",
+  "private": true,
+  "main": "../build/Workflow/utils.js"
+}
