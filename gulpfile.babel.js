@@ -105,6 +105,23 @@ gulp.task('copy-pkg-json', ['copy-to-release'], jsonEdit('package.json', release
   },
 }));
 
-gulp.task('publish', ['build', 'clean-release', 'copy-to-release', 'copy-pkg-json', 'copy-readme']);
+gulp.task('copy-queuedb', ['copy-to-release'], jsonEdit('QueueDB/package.json', `${releaseRoot}/QueueDB`, {
+  merge: {
+    main: '../Workflow/QueueDB.js'
+  }
+}));
+gulp.task('copy-constants', ['copy-to-release'], jsonEdit('constants/package.json', `${releaseRoot}/constants`, {
+  merge: {
+    main: '../Workflow/constants.js'
+  }
+}));
+gulp.task('copy-utils', ['copy-to-release'], jsonEdit('utils/package.json', `${releaseRoot}/utils`, {
+  merge: {
+    main: '../Workflow/utils.js'
+  }
+}));
+gulp.task('copy-proxies', ['copy-queuedb', 'copy-constants', 'copy-utils']);
+
+gulp.task('publish', ['build', 'clean-release', 'copy-to-release', 'copy-pkg-json', 'copy-readme', 'copy-proxies']);
 
 gulp.task('default', ['build']);
