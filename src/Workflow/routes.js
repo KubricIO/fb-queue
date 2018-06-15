@@ -26,16 +26,16 @@ export default (apps = [], QueueDB, wares = []) => {
     }
   };
 
-  Router.get('/:email', [...wares, async (req, res, next) => {
-    const { email } = req.params;
-    if (!email || email.length === 0) {
-      res.status(500).send('Please provide a valid email id');
+  Router.get('/', [...wares, async (req, res, next) => {
+    const { userid } = req._sessionData;
+    if (!userid || userid.length === 0) {
+      res.status(401).send("Unauthorized");
     }
     if (typeof apps === 'string') {
       apps = [apps];
     }
     const appSet = new Set(apps);
-    const userKey = validateFirebaseKey(email);
+    const userKey = validateFirebaseKey(userid);
 
     const snapshots = await QueueDB.getAllTasksRef(userKey)
       .orderByChild('user')

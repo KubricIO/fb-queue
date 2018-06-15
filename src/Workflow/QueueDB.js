@@ -34,6 +34,10 @@ export default class QueueDB {
     return QueueDB.db.ref(`${QueueDB.dbRoot}${path}`);
   }
 
+  static getRefFromJobtype(app, jobType, path = '') {
+    return QueueDB.getQueueRef(`/apps/${app}/${jobType}${path}`);
+  }
+
   static getTasksRef(app, jobType) {
     return QueueDB.getQueueRef(`/apps/${app}/${jobType}/tasks`);
   }
