@@ -19,13 +19,15 @@ export default class QueueDB {
       if (typeof serviceAccount === 'undefined') {
         throw new Error('Provided firebase conf should have a property "serviceAccount" with the service account details');
       }
-      firebaseInstance.initializeApp({
-        credential: firebaseInstance.credential.cert(serviceAccount),
-        databaseURL: config.databaseURL,
-        databaseAuthVariableOverride: {
-          uid: 'kubric-fbqueue-admin',
-        },
-      });
+      if (firebaseInstance.apps.length === 0) {
+        firebaseInstance.initializeApp({
+          credential: firebaseInstance.credential.cert(serviceAccount),
+          databaseURL: config.databaseURL,
+          databaseAuthVariableOverride: {
+            uid: 'kubric-fbqueue-admin',
+          },
+        });
+      }
     }
     QueueDB.db = firebaseInstance.database();
   }
