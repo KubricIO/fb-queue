@@ -5,34 +5,44 @@ import _ from 'lodash';
 export default (apps = [], QueueDB, wares = []) => {
   const Router = Express.Router();
 
-  const resolveKey = async (req, res, next) => {
-    const { key } = req.params;
-    let email = _.get(req, '_sessionData.email');
-    if (typeof email === 'undefined') {
-      email = req.query.email;
-    }
-    if (!email) {
-      res.status(500).send('Missing user email');
+  const checkUserId = (req, res, next) => {
+    const { userid } = req._sessionData;
+    if (!userid || userid.length === 0) {
+      res.status(401).send("Unauthorized");
     } else {
-      const allTasksRef = QueueDB.getAllTasksRefFor(email, key);
-      const snapshot = await allTasksRef.once('value');
-      const { __app__: appName, __type__: jobType, __ref__ } = snapshot.val();
-      req._user = email;
-      req._app = appName;
-      req._jobType = jobType;
-      req._allTasksRef = allTasksRef;
-      req._jobKey = __ref__;
+      req._userid = userid;
       next();
     }
   };
 
-  Router.get('/', [...wares, async (req, res, next) => {
-    const { userid } = req._sessionData;
-    if (!userid || userid.length === 0) {
-      res.status(401).send("Unauthorized");
-    }
+  const resolveKey = async (req, res, next) => {
+    const { key } = req.params;
+    const { _userid: userid } = req;
+    const allTasksRef = QueueDB.getAllTasksRefFor(userid, key);
+    const snapshot = await allTasksRef.once('value');
+    const { __app__: appName, __type__: jobType, __ref__ } = snapshot.val();
+    req._app = appName;
+    req._jobType = jobType;
+    req._allTasksRef = allTasksRef;
+    req._jobKey = __ref__;
+    next();
+  };
+
+  Router.get('/', [...wares, checkUserId, async (req, res) => {
+    const { _userid: userid } = req;
+    const appJobs = {};
+
     if (typeof apps === 'string') {
       apps = [apps];
+    } else if (Array.isArray(apps)) {
+      apps = apps.map(appConf => {
+        if (typeof appConf.app !== 'undefined') {
+          appJobs[appConf.app] = new Set(appConf.jobs || []);
+          return appConf.app;
+        } else {
+          return appConf;
+        }
+      });
     }
     const appSet = new Set(apps);
     const userKey = validateFirebaseKey(userid);
@@ -44,8 +54,9 @@ export default (apps = [], QueueDB, wares = []) => {
 
     let promises = [];
     snapshots.forEach(allTaskSnap => {
-      const { taskRefKey, __app__: appName, __type__: jobType } = allTaskSnap.val();
-      if (appSet.has(appName)) {
+      const { __ref__: taskRefKey, __app__: appName, __type__: jobType } = allTaskSnap.val();
+      const jobSet = appJobs[appName];
+      if (appSet.has(appName) && (!jobSet || jobSet.has(jobType))) {
         promises.push(QueueDB.getTaskRef(appName, jobType, taskRefKey)
           .once('value')
           .then(taskSnap => {
@@ -61,7 +72,7 @@ export default (apps = [], QueueDB, wares = []) => {
     res.status(200).send(results);
   }]);
 
-  Router.put('/retry/:key', [...wares, resolveKey, async (req, res, next) => {
+  Router.put('/retry/:key', [...wares, checkUserId, resolveKey, async (req, res, next) => {
     const { _app: appName, _jobType: jobType, _jobKey: key } = req;
     const taskRef = QueueDB.getTaskRef(appName, jobType, key);
     let snapshot = await taskRef.once('value');
@@ -87,7 +98,7 @@ export default (apps = [], QueueDB, wares = []) => {
     }
   }]);
 
-  Router.delete('/:key', [...wares, resolveKey, async (req, res, next) => {
+  Router.delete('/:key', [...wares, checkUserId, resolveKey, async (req, res, next) => {
     const { _app, _jobType, _allTasksRef, _jobKey } = req;
     await _allTasksRef.remove();
     await QueueDB.getTaskRef(_app, _jobType, _jobKey).remove();
