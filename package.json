@@ -34,7 +34,7 @@
     "lodash": "^4.6.1",
     "rsvp": "^3.2.1",
     "uuid": "^3.0.0",
-    "winston": "^2.2.0"
+    "winston": "^2.4.4"
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",
